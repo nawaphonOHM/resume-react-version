@@ -128,6 +128,10 @@ function buildPdf(resume: ResumeProfile) {
     lineGroups.push(lines.slice(index, index + MAX_LINES_PER_PAGE));
   }
 
+  if (lineGroups.length === 0) {
+    lineGroups.push([" "]);
+  }
+
   const objects: string[] = [];
   objects.push("<< /Type /Catalog /Pages 2 0 R >>");
 
