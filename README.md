@@ -157,10 +157,10 @@ The output is host-neutral and requires no backend, runtime API, or server-side 
 
 ## Useful scripts
 
-| Command            | Purpose                                      |
-| ------------------ | -------------------------------------------- |
-| `npm run dev`      | Run the Vite development server.             |
-| `npm run build`    | Produce the static production build.         |
-| `npm run lint`     | Run ESLint across the repository.            |
-| `npm run preview`  | Preview the production build locally.        |
+| Command                | Purpose                                   |
+| ---------------------- | ----------------------------------------- |
+| `npm run dev`          | Run the Vite development server.          |
+| `npm run build`        | Produce the static production build.      |
+| `npm run lint`         | Run ESLint across the repository.         |
+| `npm run preview`      | Preview the production build locally.     |
 | `npm run format:check` | Verify formatting without changing files. |
