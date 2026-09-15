@@ -6,6 +6,7 @@ const MARGIN_X = 48;
 const MARGIN_TOP = 48;
 const LINE_HEIGHT = 14;
 const MAX_LINES_PER_PAGE = 48;
+const encoder = new TextEncoder();
 
 function normalizePdfText(value: string) {
   return value
@@ -153,7 +154,7 @@ function buildPdf(resume: ResumeProfile) {
     const pageObjectId = pageObjectIds[pageIndex];
     const contentObjectId = contentObjectIds[pageIndex];
     const stream = createContentStream(group);
-    const streamLength = new TextEncoder().encode(stream).length;
+    const streamLength = encoder.encode(stream).length;
 
     objects[pageObjectId - 1] =
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>`;
@@ -165,11 +166,11 @@ function buildPdf(resume: ResumeProfile) {
   const offsets = [0];
 
   objects.forEach((object, index) => {
-    offsets.push(pdf.length);
+    offsets.push(encoder.encode(pdf).length);
     pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
   });
 
-  const xrefOffset = pdf.length;
+  const xrefOffset = encoder.encode(pdf).length;
   pdf += `xref\n0 ${objects.length + 1}\n`;
   pdf += "0000000000 65535 f \n";
 
