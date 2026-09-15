@@ -1,218 +1,94 @@
-import type { ResumeProfile } from "./resume-data";
+export const RESUME_PDF_DOWNLOAD_URL =
+  "https://resume-images.ohm-mho.space/downloadable-resume/Nawaphon_Isarathanachaikul.pdf";
+export const RESUME_PDF_FILENAME =
+  "nawaphon-isarathanachaikul-resume-profile.pdf";
 
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
-const MARGIN_X = 48;
-const MARGIN_TOP = 48;
-const LINE_HEIGHT = 14;
-const MAX_LINES_PER_PAGE = Math.floor(
-  (PAGE_HEIGHT - MARGIN_TOP * 2) / LINE_HEIGHT,
-);
-const encoder = new TextEncoder();
+export type DownloadProgressCallback = (progress: number | null) => void;
 
-function normalizePdfText(value: string) {
-  return value
-    .replace(/[\u2013\u2014]/g, "-")
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[^\x20-\x7E]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+export async function checkResumePdfAvailability(
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (typeof fetch === "undefined") {
+    return false;
+  }
 
-function escapePdfText(value: string) {
-  return value
-    .replaceAll("\\", "\\\\")
-    .replaceAll("(", "\\(")
-    .replaceAll(")", "\\)");
-}
-
-function wrapText(value: string, maxCharacters = 88) {
-  const words = normalizePdfText(value)
-    .split(" ")
-    .flatMap((word) => {
-      if (word.length <= maxCharacters) {
-        return [word];
-      }
-
-      const chunks: string[] = [];
-
-      for (let index = 0; index < word.length; index += maxCharacters) {
-        chunks.push(word.slice(index, index + maxCharacters));
-      }
-
-      return chunks;
+  try {
+    const response = await fetch(RESUME_PDF_DOWNLOAD_URL, {
+      method: "HEAD",
+      signal,
     });
-  const lines: string[] = [];
-  let currentLine = "";
-
-  for (const word of words) {
-    const nextLine = currentLine ? `${currentLine} ${word}` : word;
-
-    if (nextLine.length <= maxCharacters) {
-      currentLine = nextLine;
-      continue;
-    }
-
-    if (currentLine) {
-      lines.push(currentLine);
-    }
-
-    currentLine = word;
+    return response.ok;
+  } catch {
+    return false;
   }
-
-  if (currentLine) {
-    lines.push(currentLine);
-  }
-
-  return lines;
 }
 
-function buildResumeLines(resume: ResumeProfile) {
-  const lines: string[] = [
-    normalizePdfText(resume.name),
-    normalizePdfText(resume.title),
-    "",
-    `Location: ${resume.details.location}`,
-    `Email: ${resume.details.email}`,
-    `Phone: ${resume.details.phoneLabel}`,
-    `Nationality: ${resume.details.nationality}`,
-    `Birth date: ${resume.details.birthDate}`,
-    "",
-    "Links:",
-  ];
-
-  for (const link of resume.links) {
-    lines.push(`- ${link.label}: ${link.url}`);
+function triggerBlobDownload(blob: Blob) {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return;
   }
 
-  lines.push("", "Summary:");
-  for (const paragraph of resume.summary) {
-    lines.push(...wrapText(`- ${paragraph}`));
-  }
-
-  lines.push("", "Experience:");
-  for (const item of resume.experience) {
-    lines.push(`${item.role} | ${item.company}`);
-    lines.push(
-      `${item.period} | ${item.location} | ${item.employmentTypes.join(", ")}`,
-    );
-
-    if (item.client) {
-      lines.push(`Client: ${item.client.name}`);
-    }
-
-    for (const highlight of item.highlights) {
-      lines.push(...wrapText(`- ${highlight}`));
-    }
-
-    lines.push(...wrapText(`Technologies: ${item.technologies.join(", ")}`));
-    lines.push("");
-  }
-
-  lines.push("Education:");
-  lines.push(resume.education.degree);
-  lines.push(
-    `${resume.education.institution} | ${resume.education.period} | GPAX ${resume.education.gpax}`,
-  );
-  lines.push(
-    `Senior project: ${resume.education.seniorProject.name} (${resume.education.seniorProject.url})`,
-  );
-  lines.push("");
-  lines.push(`Core skills: ${resume.skills.join(", ")}`);
-
-  return lines;
-}
-
-function createContentStream(lines: string[]) {
-  const initialY = PAGE_HEIGHT - MARGIN_TOP;
-  const commands = [`BT`, `/F1 11 Tf`, `${MARGIN_X} ${initialY} Td`];
-
-  for (const line of lines) {
-    commands.push(`(${escapePdfText(normalizePdfText(line) || " ")}) Tj`);
-    commands.push(`0 -${LINE_HEIGHT} Td`);
-  }
-
-  commands.push("ET");
-  return commands.join("\n");
-}
-
-function buildPdf(resume: ResumeProfile) {
-  const lineGroups: string[][] = [];
-  const lines = buildResumeLines(resume);
-
-  for (let index = 0; index < lines.length; index += MAX_LINES_PER_PAGE) {
-    lineGroups.push(lines.slice(index, index + MAX_LINES_PER_PAGE));
-  }
-
-  if (lineGroups.length === 0) {
-    lineGroups.push([" "]);
-  }
-
-  const objects: string[] = [];
-  objects.push("<< /Type /Catalog /Pages 2 0 R >>");
-
-  const pageObjectIds: number[] = [];
-  const contentObjectIds: number[] = [];
-  const firstDynamicObjectId = 4;
-
-  lineGroups.forEach((_, pageIndex) => {
-    pageObjectIds.push(firstDynamicObjectId + pageIndex * 2);
-    contentObjectIds.push(firstDynamicObjectId + pageIndex * 2 + 1);
-  });
-
-  objects.push(
-    `<< /Type /Pages /Count ${lineGroups.length} /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(" ")}] >>`,
-  );
-  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
-
-  lineGroups.forEach((group, pageIndex) => {
-    const pageObjectId = pageObjectIds[pageIndex];
-    const contentObjectId = contentObjectIds[pageIndex];
-    const stream = createContentStream(group);
-    const streamLength = encoder.encode(stream).length;
-
-    objects[pageObjectId - 1] =
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>`;
-    objects[contentObjectId - 1] =
-      `<< /Length ${streamLength} >>\nstream\n${stream}\nendstream`;
-  });
-
-  let pdf = "%PDF-1.4\n";
-  const offsets = [0];
-
-  objects.forEach((object, index) => {
-    offsets.push(encoder.encode(pdf).length);
-    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
-  });
-
-  const xrefOffset = encoder.encode(pdf).length;
-  pdf += `xref\n0 ${objects.length + 1}\n`;
-  pdf += "0000000000 65535 f \n";
-
-  for (let index = 1; index < offsets.length; index += 1) {
-    pdf += `${offsets[index].toString().padStart(10, "0")} 00000 n \n`;
-  }
-
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  return pdf;
-}
-
-export function downloadResumePdf(resume: ResumeProfile) {
-  const pdf = buildPdf(resume);
-  const blob = new Blob([pdf], { type: "application/pdf" });
-  const url = URL.createObjectURL(blob);
+  const objectUrl = window.URL.createObjectURL(blob);
   const anchor = document.createElement("a");
-  const fileNameSlug = resume.name
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "");
-  anchor.href = url;
-  anchor.download = `${fileNameSlug || "resume"}-resume.pdf`;
+
+  anchor.href = objectUrl;
+  anchor.download = RESUME_PDF_FILENAME;
+  anchor.hidden = true;
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
+
   window.setTimeout(() => {
-    URL.revokeObjectURL(url);
+    window.URL.revokeObjectURL(objectUrl);
   }, 0);
+}
+
+export function downloadResumePdf(
+  onProgress?: DownloadProgressCallback,
+): Promise<void> {
+  if (typeof XMLHttpRequest === "undefined") {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("GET", RESUME_PDF_DOWNLOAD_URL, true);
+    request.responseType = "blob";
+
+    request.addEventListener("progress", (event) => {
+      if (!(typeof event.total === "number" && event.total > 0)) {
+        onProgress?.(null);
+        return;
+      }
+
+      const percentage = Math.min(
+        100,
+        Math.max(0, Math.round((event.loaded / event.total) * 100)),
+      );
+
+      onProgress?.(percentage);
+    });
+
+    request.addEventListener("load", () => {
+      if (request.status >= 200 && request.status < 300 && request.response) {
+        triggerBlobDownload(request.response);
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(`Failed to download resume PDF (${request.status || 0}).`),
+      );
+    });
+
+    request.addEventListener("error", () => {
+      reject(new Error("Failed to download resume PDF."));
+    });
+
+    request.addEventListener("abort", () => {
+      reject(new Error("Resume PDF download was aborted."));
+    });
+
+    request.send();
+  });
 }

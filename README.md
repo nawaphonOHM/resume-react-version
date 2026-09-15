@@ -2,7 +2,7 @@
 
 # Nawaphon Isarathanachaikul — Résumé Portfolio (React Version)
 
-A public React single-page résumé built with Ring UI and Tailwind CSS. It includes responsive section navigation, remembered light and dark themes, browser-print styling, accessible image zoom previews, and a user-triggered browser-generated PDF download.
+A public React single-page résumé built with Ring UI and Tailwind CSS. It includes responsive section navigation, remembered light and dark themes, Bangkok-time availability signaling, dynamic favicon switching, browser-print styling, accessible image zoom previews, and a resilient hosted PDF download flow with pre-flight availability verification and confirmation.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ Open `http://localhost:5173/`. The development server reloads when source files 
 
 ## Architecture & Component Graph
 
-The project follows a compact React + Vite architecture with one application shell, typed canonical résumé data, browser-only UI state, and a client-side PDF generator.
+The project follows a compact React + Vite architecture with one application shell, typed canonical résumé data, browser-only UI state, remote asset integration, and a hosted PDF download flow.
 
 ```mermaid
 graph TD
@@ -38,34 +38,36 @@ graph TD
         APP --> EDUCATION["Education section"]
         APP --> SKILLS["Skills section"]
         APP --> PROFILE["Profile section"]
-        APP --> MODAL["Logo preview dialog"]
+        APP --> ZOOM["Logo preview dialog"]
+        APP --> PDF_DIALOG["PDF confirmation dialog"]
     end
 
     subgraph DataLayer["Canonical Data & Types"]
         DATA["resume-data.ts"] --> APP
-        DATA --> PDF["pdf.ts"]
         DATA --> NAV
     end
 
-    subgraph BrowserRuntime["Browser-only Runtime Behavior"]
+    subgraph Runtime["Browser-only Runtime Behavior"]
         APP --> THEME["Theme persistence via localStorage"]
         APP --> OBSERVER["IntersectionObserver active section tracking"]
-        APP --> CLOCK["Bangkok time + availability state"]
+        APP --> STATUS["status.ts availability schedule"]
+        STATUS --> FAVICON["Dynamic favicon synchronization"]
+        APP --> PDF["pdf.ts hosted download flow"]
+        PDF --> HEAD["HEAD availability check"]
+        PDF --> STREAM["XHR download progress"]
         APP --> PRINT["window.print()"]
-        APP --> PDF
-        PDF --> BLOB["Blob URL download"]
     end
 
     subgraph Assets["Remote Assets"]
-        APP -.->|logos and images| DO["DigitalOcean Spaces"]
+        APP -.->|logos, favicons, hosted PDF| DO["DigitalOcean Spaces"]
     end
 ```
 
 - **Application Shell:** `src/main.tsx` mounts the React app and imports the shared Ring UI and Tailwind-driven global styles.
-- **Single Page UI:** `src/App.tsx` renders the full résumé page, including the sticky navigation, hero content, experience timeline, education, skills, profile cards, print action, and zoom dialog.
+- **Single Page UI:** `src/App.tsx` renders the full résumé page, including navigation, theme controls, hosted PDF controls, confirmation dialog, zoom dialog, and all résumé sections.
 - **Typed Canonical Data:** `src/resume-data.ts` defines the résumé contracts, section registry, and publishable résumé content used throughout the app.
-- **Client-side PDF Generator:** `src/pdf.ts` converts the canonical résumé data into a browser-generated PDF and downloads it with a blob URL.
-- **Remote Assets:** company, university, and link logos are loaded from the public DigitalOcean Spaces origin.
+- **Availability & Favicon Logic:** `src/status.ts` resolves Bangkok-time availability states and maps them to dynamic favicon URLs and badge presentation.
+- **Hosted PDF Download Flow:** `src/pdf.ts` checks hosted PDF availability with a `HEAD` request, streams the file with progress reporting, and triggers browser download through a blob URL.
 
 ## Computer Science Concepts & Prerequisites
 
@@ -73,29 +75,34 @@ To understand and maintain the implementation, familiarity with the following co
 
 ### 1. Component-driven UI composition
 
-- **Single-page composition:** `App.tsx` renders the whole résumé as one composed React tree while keeping the canonical data separate in `resume-data.ts`.
-- **Typed UI contracts:** the résumé data is modeled with TypeScript interfaces so content changes remain structurally consistent across sections.
+- **Single-page composition:** `App.tsx` renders the full résumé as one React tree while keeping content and UI rules outside the JSX where practical.
+- **Typed UI contracts:** résumé content is modeled with TypeScript interfaces so content edits remain structurally consistent across sections.
 
-### 2. Browser state synchronization
+### 2. Timezone-based state machines
 
-- **Persistent theme preference:** the active light/dark theme is synchronized with `localStorage` and reflected through `data-theme` on the root document element (`src/App.tsx`).
-- **Time-derived UI state:** Bangkok-local time drives the availability badge and live timestamp display in the hero section (`src/App.tsx`).
+- **Bangkok availability scheduling:** `src/status.ts` derives availability from weekday and time boundaries in the `Asia/Bangkok` timezone, distinguishing `available`, `limited`, and `unavailable` states.
+- **Time-derived presentation:** the live clock, availability badge, and favicon all react to the same current instant so the UI remains consistent.
 
-### 3. Viewport observation and navigation state
+### 3. Browser state synchronization
+
+- **Persistent theme preference:** the active light/dark theme is synchronized with `localStorage` and reflected through `data-theme` on the document root (`src/App.tsx`).
+- **Dynamic favicon switching:** the active availability state is mapped to a remote favicon variant and synchronized with the document head (`src/status.ts`, `src/App.tsx`).
+
+### 4. Viewport observation and navigation state
 
 - **IntersectionObserver section tracking:** visible sections are observed in the browser so the sticky navigation can highlight the most active section as the user scrolls (`src/App.tsx`).
-- **Anchor-based document navigation:** section links use hash fragments and `scroll-behavior: smooth` to provide in-page navigation (`src/App.tsx`, `src/index.css`).
+- **Anchor-based navigation:** section links use hash fragments and smooth scrolling for in-page navigation (`src/App.tsx`, `src/index.css`).
 
-### 4. Accessibility and focus management
+### 5. Accessibility and focus management
 
-- **Modal keyboard support:** the zoom dialog moves focus to its close button when opened, supports Escape to dismiss, cycles focus within the dialog, and restores focus to the previous trigger when closed (`src/App.tsx`).
-- **Accessible control naming:** theme, logo-preview, and close controls expose explicit accessible labels and pressed state where appropriate (`src/App.tsx`).
+- **Modal keyboard support:** both the zoom dialog and PDF confirmation dialog move focus into the dialog, support Escape dismissal, cycle focus within the modal, and restore focus to the prior trigger when closed (`src/App.tsx`).
+- **Accessible controls:** theme, download, zoom, and close controls expose explicit labels, state, and busy feedback (`src/App.tsx`).
 
-### 5. Client-side document generation
+### 6. Client-side file transfer orchestration
 
-- **Text normalization for PDF output:** the PDF builder normalizes punctuation and strips unsupported characters before embedding text into a raw PDF content stream (`src/pdf.ts`).
-- **Byte-accurate PDF serialization:** stream lengths and cross-reference offsets are measured in encoded byte lengths rather than UTF-16 code units to keep generated PDFs structurally valid (`src/pdf.ts`).
-- **Line wrapping and pagination:** the PDF generator wraps long text and derives page capacity from page geometry constants so multi-page output remains readable (`src/pdf.ts`).
+- **Pre-flight verification:** the hosted résumé PDF is checked with a `HEAD` request before download so the UI can signal possible unavailability (`src/pdf.ts`).
+- **Progress-aware download streaming:** the download flow uses `XMLHttpRequest` progress events to expose determinate percentages when the remote server reports total size (`src/pdf.ts`).
+- **Blob URL handoff:** downloaded binary data is converted into a temporary object URL and activated with a hidden anchor so the browser handles the file save UX (`src/pdf.ts`).
 
 ## Edit résumé content
 
@@ -105,29 +112,35 @@ The phone value must remain `Available on request`. Do not add a phone number or
 
 ## Static assets
 
-All project-owned images are served from the DigitalOcean Space origin `https://resume-images.ohm-mho.space`.
+All project-owned images and hosted downloads are served from the DigitalOcean Space origin `https://resume-images.ohm-mho.space`.
 
 The React app currently uses remote assets for:
 
 - `/company-logos/...`
 - `/link-logos/...`
 - `/university-logos/...`
+- `/favicons/available/favicon.svg`
+- `/favicons/limited/favicon.svg`
+- `/favicons/unavailable/favicon.svg`
+- `/downloadable-resume/Nawaphon_Isarathanachaikul.pdf`
 
-If an image request fails, the application currently has no custom local fallback asset pipeline.
+If a remote asset request fails, the application currently has no custom local fallback asset pipeline.
 
 ## On-demand résumé PDF
 
-Activating the Download PDF control generates the résumé directly in the browser from the canonical typed résumé data in `src/resume-data.ts`.
+Activating the Download PDF control downloads the hosted résumé PDF asset from:
 
-The current React implementation does not load an external PDF runtime. Instead, `src/pdf.ts`:
+- `https://resume-images.ohm-mho.space/downloadable-resume/Nawaphon_Isarathanachaikul.pdf`
 
-- normalizes résumé text for PDF-safe output,
-- wraps long content into printable lines,
-- paginates based on page geometry,
-- serializes a minimal PDF document,
-- downloads the file through a temporary blob URL.
+The React implementation first performs a `HEAD` request to detect whether the hosted file appears available.
 
-The generated filename is derived from the résumé name and normalized to a safe slug before download.
+- If the file looks available, the app starts streaming the download immediately.
+- If the file looks unavailable, the app opens an accessible confirmation dialog so the user can decide whether to continue anyway.
+- While the download is in progress, the control exposes busy and percentage-based progress feedback when possible.
+
+The downloaded filename is fixed as:
+
+- `nawaphon-isarathanachaikul-resume-profile.pdf`
 
 ## Formatting and tests
 
