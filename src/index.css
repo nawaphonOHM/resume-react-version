@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 :root {
   color-scheme: light;
@@ -11,7 +11,13 @@
   --app-border: #d7e1ee;
   --app-accent: #1867ff;
   --app-accent-soft: rgba(24, 103, 255, 0.12);
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -20,7 +26,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-:root[data-theme='dark'] {
+:root[data-theme="dark"] {
   color-scheme: dark;
   --app-bg: #0b1220;
   --app-surface: #121c2f;
@@ -51,12 +57,17 @@ body {
 
 button,
 a {
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 @media print {
   :root,
-  :root[data-theme='dark'] {
+  :root[data-theme="dark"] {
     color-scheme: light;
     --app-bg: #ffffff;
     --app-surface: #ffffff;
