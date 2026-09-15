@@ -5,7 +5,9 @@ const PAGE_HEIGHT = 792;
 const MARGIN_X = 48;
 const MARGIN_TOP = 48;
 const LINE_HEIGHT = 14;
-const MAX_LINES_PER_PAGE = 48;
+const MAX_LINES_PER_PAGE = Math.floor(
+  (PAGE_HEIGHT - MARGIN_TOP * 2) / LINE_HEIGHT,
+);
 const encoder = new TextEncoder();
 
 function normalizePdfText(value: string) {
@@ -26,7 +28,21 @@ function escapePdfText(value: string) {
 }
 
 function wrapText(value: string, maxCharacters = 88) {
-  const words = normalizePdfText(value).split(" ");
+  const words = normalizePdfText(value)
+    .split(" ")
+    .flatMap((word) => {
+      if (word.length <= maxCharacters) {
+        return [word];
+      }
+
+      const chunks: string[] = [];
+
+      for (let index = 0; index < word.length; index += maxCharacters) {
+        chunks.push(word.slice(index, index + maxCharacters));
+      }
+
+      return chunks;
+    });
   const lines: string[] = [];
   let currentLine = "";
 
