@@ -74,6 +74,7 @@ function LogoButton({
 }
 
 function App() {
+  const githubLink = resumeData.links.find((link) => link.label === "GitHub");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [activeSection, setActiveSection] = useState<ResumeSectionId>("about");
   const [currentTime, setCurrentTime] = useState(() => new Date());
@@ -239,6 +240,7 @@ function App() {
               <Button onClick={() => window.print()}>Print</Button>
               <Button
                 ghost
+                aria-label={`Theme toggle, dark mode is ${theme === "dark" ? "on" : "off"}`}
                 aria-pressed={theme === "dark"}
                 onClick={() => setTheme(theme === "light" ? "dark" : "light")}
               >
@@ -301,13 +303,15 @@ function App() {
                   <Button primary href={`mailto:${resumeData.details.email}`}>
                     Email me
                   </Button>
-                  <Button
-                    href={resumeData.links[0].url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View GitHub
-                  </Button>
+                  {githubLink && (
+                    <Button
+                      href={githubLink.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      View GitHub
+                    </Button>
+                  )}
                 </div>
               </div>
             </Panel>
@@ -701,7 +705,7 @@ function App() {
               type="button"
               aria-label="Close logo preview"
               onClick={() => setZoomImage(null)}
-              className="absolute right-4 top-14 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white"
+              className="mb-3 self-end rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white"
             >
               Close
             </button>
