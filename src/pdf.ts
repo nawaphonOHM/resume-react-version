@@ -183,6 +183,10 @@ export function downloadResumePdf(resume: ResumeProfile) {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = `${resume.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-resume.pdf`;
+  document.body.append(anchor);
   anchor.click();
-  URL.revokeObjectURL(url);
+  anchor.remove();
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 0);
 }
