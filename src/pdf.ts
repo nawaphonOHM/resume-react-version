@@ -153,11 +153,12 @@ function buildPdf(resume: ResumeProfile) {
     const pageObjectId = pageObjectIds[pageIndex];
     const contentObjectId = contentObjectIds[pageIndex];
     const stream = createContentStream(group);
+    const streamLength = new TextEncoder().encode(stream).length;
 
     objects[pageObjectId - 1] =
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>`;
     objects[contentObjectId - 1] =
-      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+      `<< /Length ${streamLength} >>\nstream\n${stream}\nendstream`;
   });
 
   let pdf = "%PDF-1.4\n";

@@ -161,6 +161,12 @@ function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setZoomImage(null);
+        return;
+      }
+
+      if (event.key === "Tab") {
+        event.preventDefault();
+        closeDialogButtonRef.current?.focus();
       }
     };
 
@@ -636,7 +642,7 @@ function App() {
           className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/75 p-4 no-print"
           role="dialog"
           aria-modal="true"
-          aria-label={zoomImage.alt}
+          aria-label="Expanded logo preview"
           onClick={() => setZoomImage(null)}
         >
           <button
