@@ -542,20 +542,22 @@ function App() {
 
                   <div className="space-y-3">
                     {resumeData.links.map((link) => (
-                      <a
+                      <div
                         key={link.label}
-                        href={link.url}
-                        target="_blank"
-                        rel="noreferrer"
                         className="flex items-center justify-between gap-4 rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-raised)] p-4 transition hover:-translate-y-0.5 hover:shadow-lg"
                       >
                         <div>
                           <p className="text-sm text-[var(--app-muted)]">
                             External link
                           </p>
-                          <p className="text-base font-semibold text-[var(--app-heading)]">
+                          <a
+                            href={link.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-flex text-base font-semibold text-[var(--app-heading)] hover:text-[var(--app-accent)] hover:underline"
+                          >
                             {link.label}
-                          </p>
+                          </a>
                         </div>
                         {link.logo ? (
                           <button
@@ -580,7 +582,7 @@ function App() {
                             Open ↗
                           </span>
                         )}
-                      </a>
+                      </div>
                     ))}
                   </div>
                 </div>
