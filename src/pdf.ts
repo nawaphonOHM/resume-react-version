@@ -187,8 +187,12 @@ export function downloadResumePdf(resume: ResumeProfile) {
   const blob = new Blob([pdf], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
+  const fileNameSlug = resume.name
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "");
   anchor.href = url;
-  anchor.download = `${resume.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-resume.pdf`;
+  anchor.download = `${fileNameSlug || "resume"}-resume.pdf`;
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
