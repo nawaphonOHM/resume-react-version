@@ -156,7 +156,9 @@ function App() {
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null;
-    closeDialogButtonRef.current?.focus();
+    const focusTimeout = window.setTimeout(() => {
+      closeDialogButtonRef.current?.focus();
+    }, 0);
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -173,6 +175,7 @@ function App() {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      window.clearTimeout(focusTimeout);
       window.removeEventListener("keydown", handleKeyDown);
       lastFocusedElementRef.current?.focus();
     };
@@ -645,19 +648,24 @@ function App() {
           aria-label="Expanded logo preview"
           onClick={() => setZoomImage(null)}
         >
-          <button
-            ref={closeDialogButtonRef}
-            type="button"
-            onClick={() => setZoomImage(null)}
-            className="absolute right-4 top-4 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white"
+          <div
+            className="relative"
+            onClick={(event) => event.stopPropagation()}
           >
-            Close
-          </button>
-          <img
-            src={zoomImage.src}
-            alt={zoomImage.alt}
-            className="max-h-[85vh] max-w-full rounded-3xl bg-white p-6 shadow-2xl"
-          />
+            <button
+              ref={closeDialogButtonRef}
+              type="button"
+              onClick={() => setZoomImage(null)}
+              className="absolute right-4 top-4 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white"
+            >
+              Close
+            </button>
+            <img
+              src={zoomImage.src}
+              alt={zoomImage.alt}
+              className="max-h-[85vh] max-w-full rounded-3xl bg-white p-6 shadow-2xl"
+            />
+          </div>
         </div>
       )}
     </div>
