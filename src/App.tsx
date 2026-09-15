@@ -60,6 +60,7 @@ function LogoButton({
     <button
       type="button"
       onClick={onClick}
+      aria-label={`Open enlarged ${alt}`}
       className={`inline-flex min-h-20 items-center justify-center rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg ${asset.surface === "dark" ? "border-slate-800 bg-slate-950" : "border-[color:var(--app-border)] bg-white/90"}`}
     >
       <img
@@ -601,6 +602,7 @@ function App() {
                           {logo ? (
                             <button
                               type="button"
+                              aria-label={`Open enlarged ${link.label} logo`}
                               className="inline-flex rounded-xl border border-[color:var(--app-border)] bg-white/90 p-3"
                               onClick={() =>
                                 setZoomImage({
@@ -645,18 +647,25 @@ function App() {
           className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/75 p-4 no-print"
           role="dialog"
           aria-modal="true"
-          aria-label="Expanded logo preview"
+          aria-labelledby="zoom-dialog-title"
+          aria-describedby="zoom-dialog-description"
           onClick={() => setZoomImage(null)}
         >
           <div
-            className="relative"
+            className="relative flex max-w-full flex-col items-center"
             onClick={(event) => event.stopPropagation()}
           >
+            <h2
+              id="zoom-dialog-title"
+              className="mb-3 text-lg font-semibold text-white"
+            >
+              Logo preview
+            </h2>
             <button
               ref={closeDialogButtonRef}
               type="button"
               onClick={() => setZoomImage(null)}
-              className="absolute right-4 top-4 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white"
+              className="absolute right-4 top-14 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white"
             >
               Close
             </button>
@@ -665,6 +674,9 @@ function App() {
               alt={zoomImage.alt}
               className="max-h-[85vh] max-w-full rounded-3xl bg-white p-6 shadow-2xl"
             />
+            <p id="zoom-dialog-description" className="mt-3 text-sm text-white">
+              {zoomImage.alt}
+            </p>
           </div>
         </div>
       )}
