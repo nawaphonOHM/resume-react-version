@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Button from "@jetbrains/ring-ui-built/components/button/button";
 import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
 import { downloadResumePdf } from "./pdf";
@@ -14,6 +14,10 @@ const THEME_STORAGE_KEY = "resume-react-theme";
 type Theme = "light" | "dark";
 
 function getInitialTheme(): Theme {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
 
   if (storedTheme === "light" || storedTheme === "dark") {
@@ -76,6 +80,8 @@ function App() {
     src: string;
     alt: string;
   } | null>(null);
+  const closeDialogButtonRef = useRef<HTMLButtonElement | null>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -141,6 +147,31 @@ function App() {
     return hour >= 9 && hour < 18;
   }, [currentTime]);
 
+  useEffect(() => {
+    if (!zoomImage) {
+      return;
+    }
+
+    lastFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    closeDialogButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setZoomImage(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      lastFocusedElementRef.current?.focus();
+    };
+  }, [zoomImage]);
+
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
       <header className="sticky top-0 z-20 border-b border-[color:var(--app-border)] bg-[color:var(--app-surface)]/90 backdrop-blur no-print">
@@ -165,11 +196,7 @@ function App() {
               <Button onClick={() => window.print()}>Print</Button>
               <Button
                 ghost
-                onClick={() =>
-                  setTheme((currentTheme) =>
-                    currentTheme === "light" ? "dark" : "light",
-                  )
-                }
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
               >
                 {theme === "light" ? "Dark mode" : "Light mode"}
               </Button>
@@ -541,49 +568,52 @@ function App() {
                   </dl>
 
                   <div className="space-y-3">
-                    {resumeData.links.map((link) => (
-                      <div
-                        key={link.label}
-                        className="flex items-center justify-between gap-4 rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-raised)] p-4 transition hover:-translate-y-0.5 hover:shadow-lg"
-                      >
-                        <div>
-                          <p className="text-sm text-[var(--app-muted)]">
-                            External link
-                          </p>
-                          <a
-                            href={link.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-1 inline-flex text-base font-semibold text-[var(--app-heading)] hover:text-[var(--app-accent)] hover:underline"
-                          >
-                            {link.label}
-                          </a>
+                    {resumeData.links.map((link) => {
+                      const logo = link.logo;
+
+                      return (
+                        <div
+                          key={link.label}
+                          className="flex items-center justify-between gap-4 rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-raised)] p-4 transition hover:-translate-y-0.5 hover:shadow-lg"
+                        >
+                          <div>
+                            <p className="text-sm text-[var(--app-muted)]">
+                              External link
+                            </p>
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-1 inline-flex text-base font-semibold text-[var(--app-heading)] hover:text-[var(--app-accent)] hover:underline"
+                            >
+                              {link.label}
+                            </a>
+                          </div>
+                          {logo ? (
+                            <button
+                              type="button"
+                              className="inline-flex rounded-xl border border-[color:var(--app-border)] bg-white/90 p-3"
+                              onClick={() =>
+                                setZoomImage({
+                                  src: logo.src,
+                                  alt: `${link.label} logo`,
+                                })
+                              }
+                            >
+                              <img
+                                src={logo.src}
+                                alt={`${link.label} logo`}
+                                className="h-8 w-auto object-contain"
+                              />
+                            </button>
+                          ) : (
+                            <span className="text-sm font-medium text-[var(--app-accent)]">
+                              Open ↗
+                            </span>
+                          )}
                         </div>
-                        {link.logo ? (
-                          <button
-                            type="button"
-                            className="inline-flex rounded-xl border border-[color:var(--app-border)] bg-white/90 p-3"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              setZoomImage({
-                                src: link.logo!.src,
-                                alt: `${link.label} logo`,
-                              });
-                            }}
-                          >
-                            <img
-                              src={link.logo.src}
-                              alt={`${link.label} logo`}
-                              className="h-8 w-auto object-contain"
-                            />
-                          </button>
-                        ) : (
-                          <span className="text-sm font-medium text-[var(--app-accent)]">
-                            Open ↗
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </Panel>
@@ -610,6 +640,7 @@ function App() {
           onClick={() => setZoomImage(null)}
         >
           <button
+            ref={closeDialogButtonRef}
             type="button"
             onClick={() => setZoomImage(null)}
             className="absolute right-4 top-4 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white"
