@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Button from "@jetbrains/ring-ui-built/components/button/button";
 import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
-import { downloadResumePdf } from "./pdf";
+import { checkResumePdfAvailability, downloadResumePdf } from "./pdf";
 import {
   type ImageAsset,
   resumeData,
   resumeSections,
   type ResumeSectionId,
 } from "./resume-data";
+import {
+  getAvailabilityBadgeClass,
+  getAvailabilityDotClass,
+  getAvailabilityLabel,
+  getAvailabilityStatus,
+  getFaviconUrlForStatus,
+  syncFavicon,
+} from "./status";
 
 const THEME_STORAGE_KEY = "resume-react-theme";
 
@@ -73,18 +81,41 @@ function LogoButton({
   );
 }
 
+function getFocusableElements(container: HTMLElement | null) {
+  return Array.from(
+    container?.querySelectorAll<
+      | HTMLButtonElement
+      | HTMLAnchorElement
+      | HTMLInputElement
+      | HTMLSelectElement
+      | HTMLTextAreaElement
+    >(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ) ?? [],
+  );
+}
+
 function App() {
   const githubLink = resumeData.links.find((link) => link.label === "GitHub");
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [activeSection, setActiveSection] = useState<ResumeSectionId>("about");
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [downloadAvailable, setDownloadAvailable] = useState<boolean | null>(
+    null,
+  );
+  const [downloadPending, setDownloadPending] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [confirmDownloadOpen, setConfirmDownloadOpen] = useState(false);
   const [zoomImage, setZoomImage] = useState<{
     src: string;
     alt: string;
   } | null>(null);
   const closeDialogButtonRef = useRef<HTMLButtonElement | null>(null);
   const dialogContentRef = useRef<HTMLDivElement | null>(null);
+  const confirmDialogContentRef = useRef<HTMLDivElement | null>(null);
+  const confirmContinueButtonRef = useRef<HTMLButtonElement | null>(null);
   const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+  const lastConfirmFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -98,6 +129,22 @@ function App() {
 
     return () => {
       window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    void checkResumePdfAvailability(abortController.signal).then(
+      (isAvailable) => {
+        if (!abortController.signal.aborted) {
+          setDownloadAvailable(isAvailable);
+        }
+      },
+    );
+
+    return () => {
+      abortController.abort();
     };
   }, []);
 
@@ -145,10 +192,39 @@ function App() {
     () => formatBangkokDate(currentTime),
     [currentTime],
   );
-  const isAvailable = useMemo(() => {
-    const hour = getBangkokHour(currentTime);
-    return hour >= 9 && hour < 18;
-  }, [currentTime]);
+  const bangkokHour = useMemo(() => getBangkokHour(currentTime), [currentTime]);
+  const availabilityStatus = useMemo(
+    () => getAvailabilityStatus(currentTime),
+    [currentTime],
+  );
+  const availabilityLabel = useMemo(
+    () => getAvailabilityLabel(availabilityStatus),
+    [availabilityStatus],
+  );
+  const downloadControlLabel = useMemo(() => {
+    if (!downloadPending) {
+      return downloadAvailable === false
+        ? "Download résumé as PDF (file may be unavailable)"
+        : "Download résumé as PDF";
+    }
+
+    return typeof downloadProgress === "number"
+      ? `Downloading résumé PDF (${downloadProgress}%)`
+      : "Downloading résumé PDF";
+  }, [downloadAvailable, downloadPending, downloadProgress]);
+  const downloadControlText = useMemo(() => {
+    if (!downloadPending) {
+      return downloadAvailable === false
+        ? "Download PDF (unavailable)"
+        : downloadAvailable === null
+          ? "Download PDF (checking)"
+          : "Download PDF";
+    }
+
+    return typeof downloadProgress === "number"
+      ? `Downloading PDF (${downloadProgress}%)`
+      : "Downloading PDF…";
+  }, [downloadAvailable, downloadPending, downloadProgress]);
 
   useEffect(() => {
     if (!zoomImage) {
@@ -170,17 +246,11 @@ function App() {
       }
 
       if (event.key === "Tab") {
-        const focusableElements = dialogContentRef.current?.querySelectorAll<
-          | HTMLButtonElement
-          | HTMLAnchorElement
-          | HTMLInputElement
-          | HTMLSelectElement
-          | HTMLTextAreaElement
-        >(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        const focusableElements = getFocusableElements(
+          dialogContentRef.current,
         );
 
-        if (!focusableElements?.length) {
+        if (!focusableElements.length) {
           event.preventDefault();
           return;
         }
@@ -216,6 +286,101 @@ function App() {
     };
   }, [zoomImage]);
 
+  useEffect(() => {
+    syncFavicon(getFaviconUrlForStatus(availabilityStatus));
+  }, [availabilityStatus]);
+
+  useEffect(() => {
+    if (!confirmDownloadOpen) {
+      return;
+    }
+
+    lastConfirmFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const focusTimeout = window.setTimeout(() => {
+      confirmContinueButtonRef.current?.focus();
+    }, 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setConfirmDownloadOpen(false);
+        return;
+      }
+
+      if (event.key === "Tab") {
+        const focusableElements = getFocusableElements(
+          confirmDialogContentRef.current,
+        );
+
+        if (!focusableElements.length) {
+          event.preventDefault();
+          return;
+        }
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (focusableElements.length === 1) {
+          event.preventDefault();
+          firstElement.focus();
+          return;
+        }
+
+        if (event.shiftKey && document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+          return;
+        }
+
+        if (!event.shiftKey && document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.clearTimeout(focusTimeout);
+      window.removeEventListener("keydown", handleKeyDown);
+      lastConfirmFocusedElementRef.current?.focus();
+    };
+  }, [confirmDownloadOpen]);
+
+  async function startResumeDownload() {
+    setDownloadPending(true);
+    setDownloadProgress(null);
+
+    try {
+      await downloadResumePdf((progress) => {
+        setDownloadProgress(progress);
+      });
+      setDownloadAvailable(true);
+    } catch (error) {
+      setDownloadAvailable(false);
+      console.error(error);
+    } finally {
+      setDownloadPending(false);
+      setDownloadProgress(null);
+    }
+  }
+
+  async function handleDownloadRequest() {
+    if (downloadPending) {
+      return;
+    }
+
+    if (downloadAvailable === false) {
+      setConfirmDownloadOpen(true);
+      return;
+    }
+
+    await startResumeDownload();
+  }
+
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
       <header className="sticky top-0 z-20 border-b border-[color:var(--app-border)] bg-[color:var(--app-surface)]/90 backdrop-blur no-print">
@@ -234,8 +399,17 @@ function App() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button primary onClick={() => downloadResumePdf(resumeData)}>
-                Download PDF
+              <Button
+                primary
+                disabled={downloadPending}
+                aria-busy={downloadPending}
+                aria-label={downloadControlLabel}
+                title={downloadControlLabel}
+                onClick={() => {
+                  void handleDownloadRequest();
+                }}
+              >
+                {downloadControlText}
               </Button>
               <Button onClick={() => window.print()}>Print</Button>
               <Button
@@ -271,16 +445,19 @@ function App() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(18rem,0.9fr)]">
             <Panel className="rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-8 shadow-sm">
               <div className="mb-6 flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-500/12 px-3 py-1 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                <span
+                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${getAvailabilityBadgeClass(availabilityStatus)}`}
+                >
                   <span
-                    className={`h-2.5 w-2.5 rounded-full ${isAvailable ? "bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.55)]" : "bg-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.45)]"}`}
+                    className={`h-2.5 w-2.5 rounded-full ${getAvailabilityDotClass(availabilityStatus)}`}
                   ></span>
-                  {isAvailable
-                    ? "Available in Bangkok business hours"
-                    : "Outside Bangkok business hours"}
+                  {availabilityLabel}
                 </span>
                 <span className="rounded-full border border-[color:var(--app-border)] px-3 py-1 text-sm text-[var(--app-muted)]">
                   {bangkokTime}
+                </span>
+                <span className="rounded-full border border-[color:var(--app-border)] px-3 py-1 text-sm text-[var(--app-muted)]">
+                  UTC+7 · {String(bangkokHour).padStart(2, "0")}:00 hour block
                 </span>
               </div>
 
@@ -313,6 +490,13 @@ function App() {
                     </Button>
                   )}
                 </div>
+                <p className="text-sm text-[var(--app-muted)]">
+                  {downloadAvailable === false
+                    ? "The hosted résumé PDF may be unavailable. Downloading will ask for confirmation."
+                    : downloadAvailable === null
+                      ? "Checking hosted résumé PDF availability."
+                      : "The hosted résumé PDF is available for direct download."}
+                </p>
               </div>
             </Panel>
 
@@ -680,9 +864,60 @@ function App() {
         </div>
       </footer>
 
+      {confirmDownloadOpen && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/65 p-4 no-print"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="download-confirm-title"
+          aria-describedby="download-confirm-description"
+          onClick={() => setConfirmDownloadOpen(false)}
+        >
+          <div
+            ref={confirmDialogContentRef}
+            className="w-full max-w-md rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2
+              id="download-confirm-title"
+              className="text-xl font-semibold text-[var(--app-heading)]"
+            >
+              Confirm download
+            </h2>
+            <p
+              id="download-confirm-description"
+              className="mt-3 text-sm leading-7 text-[var(--app-muted)]"
+            >
+              The hosted résumé PDF may be unavailable. Do you want to continue
+              the download anyway?
+            </p>
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                className="inline-flex items-center rounded-full border border-[color:var(--app-border)] px-4 py-2 text-sm font-medium text-[var(--app-heading)] transition hover:border-[color:var(--app-accent)]"
+                onClick={() => setConfirmDownloadOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                ref={confirmContinueButtonRef}
+                type="button"
+                className="inline-flex items-center rounded-full bg-[var(--app-accent)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                onClick={() => {
+                  setConfirmDownloadOpen(false);
+                  void startResumeDownload();
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {zoomImage && (
         <div
-          className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/75 p-4 no-print"
+          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/75 p-4 no-print"
           role="dialog"
           aria-modal="true"
           aria-labelledby="zoom-dialog-title"
