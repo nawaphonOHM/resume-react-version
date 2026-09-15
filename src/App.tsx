@@ -82,6 +82,7 @@ function App() {
     alt: string;
   } | null>(null);
   const closeDialogButtonRef = useRef<HTMLButtonElement | null>(null);
+  const dialogContentRef = useRef<HTMLDivElement | null>(null);
   const lastFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -168,8 +169,40 @@ function App() {
       }
 
       if (event.key === "Tab") {
-        event.preventDefault();
-        closeDialogButtonRef.current?.focus();
+        const focusableElements = dialogContentRef.current?.querySelectorAll<
+          | HTMLButtonElement
+          | HTMLAnchorElement
+          | HTMLInputElement
+          | HTMLSelectElement
+          | HTMLTextAreaElement
+        >(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+
+        if (!focusableElements?.length) {
+          event.preventDefault();
+          return;
+        }
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (focusableElements.length === 1) {
+          event.preventDefault();
+          firstElement.focus();
+          return;
+        }
+
+        if (event.shiftKey && document.activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+          return;
+        }
+
+        if (!event.shiftKey && document.activeElement === lastElement) {
+          event.preventDefault();
+          firstElement.focus();
+        }
       }
     };
 
@@ -206,6 +239,7 @@ function App() {
               <Button onClick={() => window.print()}>Print</Button>
               <Button
                 ghost
+                aria-pressed={theme === "dark"}
                 onClick={() => setTheme(theme === "light" ? "dark" : "light")}
               >
                 {theme === "light" ? "Dark mode" : "Light mode"}
@@ -270,7 +304,7 @@ function App() {
                   <Button
                     href={resumeData.links[0].url}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                   >
                     View GitHub
                   </Button>
@@ -486,7 +520,7 @@ function App() {
                       <a
                         href={resumeData.education.seniorProject.url}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
                         className="mt-1 inline-flex text-xl font-semibold text-[var(--app-accent)] hover:underline"
                       >
                         {resumeData.education.seniorProject.name}
@@ -593,7 +627,7 @@ function App() {
                             <a
                               href={link.url}
                               target="_blank"
-                              rel="noreferrer"
+                              rel="noopener noreferrer"
                               className="mt-1 inline-flex text-base font-semibold text-[var(--app-heading)] hover:text-[var(--app-accent)] hover:underline"
                             >
                               {link.label}
@@ -652,6 +686,7 @@ function App() {
           onClick={() => setZoomImage(null)}
         >
           <div
+            ref={dialogContentRef}
             className="relative flex max-w-full flex-col items-center"
             onClick={(event) => event.stopPropagation()}
           >
@@ -664,6 +699,7 @@ function App() {
             <button
               ref={closeDialogButtonRef}
               type="button"
+              aria-label="Close logo preview"
               onClick={() => setZoomImage(null)}
               className="absolute right-4 top-14 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-medium text-white"
             >
