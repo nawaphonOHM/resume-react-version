@@ -18,6 +18,7 @@ const bangkokPartsFormatter = new Intl.DateTimeFormat("en-US", {
   minute: "2-digit",
   second: "2-digit",
   hour12: false,
+  numberingSystem: "latn",
 });
 
 const faviconUrls: Record<AvailabilityStatus, string> = {
@@ -117,14 +118,19 @@ export function syncFavicon(url: string) {
     return;
   }
 
-  let faviconLink =
-    document.head.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  const faviconLinks = Array.from(
+    document.head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'),
+  );
 
-  if (!faviconLink) {
-    faviconLink = document.createElement("link");
+  if (faviconLinks.length === 0) {
+    const faviconLink = document.createElement("link");
     faviconLink.rel = "icon";
+    faviconLink.href = url;
     document.head.append(faviconLink);
+    return;
   }
 
-  faviconLink.href = url;
+  for (const faviconLink of faviconLinks) {
+    faviconLink.href = url;
+  }
 }

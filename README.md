@@ -124,7 +124,7 @@ The React app currently uses remote assets for:
 - `/favicons/unavailable/favicon.svg`
 - `/downloadable-resume/Nawaphon_Isarathanachaikul.pdf`
 
-If a remote asset request fails, the application currently has no custom local fallback asset pipeline.
+If a remote asset request fails, the application currently has no custom local fallback asset pipeline. Image and favicon assets stay remote-only, so the browser may continue showing the last reachable favicon or omit that asset entirely until the remote request succeeds again.
 
 ## On-demand résumé PDF
 
@@ -136,7 +136,9 @@ The React implementation first performs a `HEAD` request to detect whether the h
 
 - If the file looks available, the app starts streaming the download immediately.
 - If the file looks unavailable, the app opens an accessible confirmation dialog so the user can decide whether to continue anyway.
+- If the user chooses to continue after a failed availability probe, the app attempts the hosted download directly and future retries stay in direct-download mode unless a later probe result changes.
 - While the download is in progress, the control exposes busy and percentage-based progress feedback when possible.
+- If the hosted file request itself fails, the browser download does not start and there is no local PDF fallback.
 
 The downloaded filename is fixed as:
 

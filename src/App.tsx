@@ -360,7 +360,6 @@ function App() {
       });
       setDownloadAvailable(true);
     } catch (error) {
-      setDownloadAvailable(false);
       console.error(error);
     } finally {
       setDownloadPending(false);
