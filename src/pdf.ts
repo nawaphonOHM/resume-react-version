@@ -4,6 +4,10 @@ export const RESUME_PDF_FILENAME =
   "nawaphon-isarathanachaikul-resume-profile.pdf";
 
 export type DownloadProgressCallback = (progress: number | null) => void;
+const DOWNLOAD_FAILURE_MESSAGE = "Failed to download resume PDF.";
+const DOWNLOAD_ABORTED_MESSAGE = "Resume PDF download was aborted.";
+const SUCCESS_STATUS_MIN = 200;
+const SUCCESS_STATUS_MAX = 299;
 
 export async function checkResumePdfAvailability(
   signal?: AbortSignal,
@@ -51,10 +55,35 @@ function toProgressPercentage(loaded: number, total: number): number | null {
   return Math.min(100, Math.max(0, Math.round((loaded / total) * 100)));
 }
 
+function isXmlHttpRequestSupported(): boolean {
+  return typeof XMLHttpRequest !== "undefined";
+}
+
+function isSuccessfulDownloadResponse(
+  request: XMLHttpRequest,
+): request is XMLHttpRequest & { response: Blob } {
+  return (
+    request.status >= SUCCESS_STATUS_MIN &&
+    request.status <= SUCCESS_STATUS_MAX &&
+    Boolean(request.response)
+  );
+}
+
+function createDownloadStatusError(status: number): Error {
+  return new Error(`Failed to download resume PDF (${status || 0}).`);
+}
+
+function handleDownloadProgress(
+  event: ProgressEvent<XMLHttpRequestEventTarget>,
+  onProgress?: DownloadProgressCallback,
+) {
+  onProgress?.(toProgressPercentage(event.loaded, event.total));
+}
+
 export function downloadResumePdf(
   onProgress?: DownloadProgressCallback,
 ): Promise<void> {
-  if (typeof XMLHttpRequest === "undefined") {
+  if (!isXmlHttpRequestSupported()) {
     return Promise.resolve();
   }
 
@@ -63,28 +92,26 @@ export function downloadResumePdf(
     request.open("GET", RESUME_PDF_DOWNLOAD_URL, true);
     request.responseType = "blob";
 
-    request.addEventListener("progress", (event) => {
-      onProgress?.(toProgressPercentage(event.loaded, event.total));
-    });
+    request.addEventListener("progress", (event) =>
+      handleDownloadProgress(event, onProgress),
+    );
 
     request.addEventListener("load", () => {
-      if (request.status >= 200 && request.status < 300 && request.response) {
+      if (isSuccessfulDownloadResponse(request)) {
         triggerBlobDownload(request.response);
         resolve();
         return;
       }
 
-      reject(
-        new Error(`Failed to download resume PDF (${request.status || 0}).`),
-      );
+      reject(createDownloadStatusError(request.status));
     });
 
     request.addEventListener("error", () => {
-      reject(new Error("Failed to download resume PDF."));
+      reject(new Error(DOWNLOAD_FAILURE_MESSAGE));
     });
 
     request.addEventListener("abort", () => {
-      reject(new Error("Resume PDF download was aborted."));
+      reject(new Error(DOWNLOAD_ABORTED_MESSAGE));
     });
 
     request.send();

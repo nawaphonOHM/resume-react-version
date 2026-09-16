@@ -68,6 +68,18 @@ describe("downloadResumePdf", () => {
     );
   }
 
+  function startDownloadWithRequest(
+    onProgress?: (progress: number | null) => void,
+  ) {
+    const request = new FakeXmlHttpRequest();
+    mockXmlHttpRequest(request);
+
+    return {
+      request,
+      promise: downloadResumePdf(onProgress),
+    };
+  }
+
   it("resolves without download when XMLHttpRequest is unavailable", async () => {
     const originalXmlHttpRequest = globalThis.XMLHttpRequest;
     vi.stubGlobal("XMLHttpRequest", undefined);
@@ -80,12 +92,11 @@ describe("downloadResumePdf", () => {
   });
 
   it("reports progress and resolves on successful download", async () => {
-    const request = new FakeXmlHttpRequest();
     const progressValues: Array<number | null> = [];
     const resumeBlob = new Blob(["resume"], { type: "application/pdf" });
-    mockXmlHttpRequest(request);
-
-    const promise = downloadResumePdf((progress) => progressValues.push(progress));
+    const { request, promise } = startDownloadWithRequest((progress) =>
+      progressValues.push(progress),
+    );
 
     request.status = 200;
     request.response = resumeBlob;
@@ -103,13 +114,27 @@ describe("downloadResumePdf", () => {
   });
 
   it("rejects when download response status is not successful", async () => {
-    const request = new FakeXmlHttpRequest();
-    mockXmlHttpRequest(request);
-    const promise = downloadResumePdf();
+    const { request, promise } = startDownloadWithRequest();
 
     request.status = 503;
     request.emit("load");
 
-    await expect(promise).rejects.toThrow("Failed to download resume PDF (503).");
+    await expect(promise).rejects.toThrow(
+      "Failed to download resume PDF (503).",
+    );
+  });
+
+  it("rejects when request emits error", async () => {
+    const { request, promise } = startDownloadWithRequest();
+    request.emit("error");
+
+    await expect(promise).rejects.toThrow("Failed to download resume PDF.");
+  });
+
+  it("rejects when request is aborted", async () => {
+    const { request, promise } = startDownloadWithRequest();
+    request.emit("abort");
+
+    await expect(promise).rejects.toThrow("Resume PDF download was aborted.");
   });
 });
