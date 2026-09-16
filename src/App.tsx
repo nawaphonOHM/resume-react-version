@@ -896,7 +896,7 @@ function App() {
       {confirmDownloadOpen && (
         <div
           className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/65 p-4 no-print"
-          role="alertdialog"
+          role="dialog"
           aria-modal="true"
           aria-labelledby="download-confirm-title"
           aria-describedby="download-confirm-description"
