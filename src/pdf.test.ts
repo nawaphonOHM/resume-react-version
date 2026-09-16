@@ -57,6 +57,17 @@ describe("checkResumePdfAvailability", () => {
 });
 
 describe("downloadResumePdf", () => {
+  function mockXmlHttpRequest(request: FakeXmlHttpRequest) {
+    vi.stubGlobal(
+      "XMLHttpRequest",
+      class {
+        constructor() {
+          return request;
+        }
+      } as unknown as typeof XMLHttpRequest,
+    );
+  }
+
   it("resolves without download when XMLHttpRequest is unavailable", async () => {
     const originalXmlHttpRequest = globalThis.XMLHttpRequest;
     vi.stubGlobal("XMLHttpRequest", undefined);
@@ -70,17 +81,11 @@ describe("downloadResumePdf", () => {
 
   it("reports progress and resolves on successful download", async () => {
     const request = new FakeXmlHttpRequest();
-    const downloadBlobMock = vi.fn();
     const progressValues: Array<number | null> = [];
     const resumeBlob = new Blob(["resume"], { type: "application/pdf" });
+    mockXmlHttpRequest(request);
 
-    const promise = downloadResumePdf(
-      (progress) => progressValues.push(progress),
-      {
-        createRequest: () => request as unknown as XMLHttpRequest,
-        handleBlobDownload: downloadBlobMock,
-      },
-    );
+    const promise = downloadResumePdf((progress) => progressValues.push(progress));
 
     request.status = 200;
     request.response = resumeBlob;
@@ -95,15 +100,12 @@ describe("downloadResumePdf", () => {
       async: true,
     });
     expect(progressValues).toEqual([25, null]);
-    expect(downloadBlobMock).toHaveBeenCalledWith(resumeBlob);
   });
 
   it("rejects when download response status is not successful", async () => {
     const request = new FakeXmlHttpRequest();
-    const promise = downloadResumePdf(undefined, {
-      createRequest: () => request as unknown as XMLHttpRequest,
-      handleBlobDownload: vi.fn(),
-    });
+    mockXmlHttpRequest(request);
+    const promise = downloadResumePdf();
 
     request.status = 503;
     request.emit("load");

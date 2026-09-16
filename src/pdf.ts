@@ -4,13 +4,6 @@ export const RESUME_PDF_FILENAME =
   "nawaphon-isarathanachaikul-resume-profile.pdf";
 
 export type DownloadProgressCallback = (progress: number | null) => void;
-type DownloadBlobHandler = (blob: Blob) => void;
-type DownloadRequestFactory = () => XMLHttpRequest;
-
-export type DownloadResumePdfOptions = {
-  createRequest?: DownloadRequestFactory;
-  handleBlobDownload?: DownloadBlobHandler;
-};
 
 export async function checkResumePdfAvailability(
   signal?: AbortSignal,
@@ -60,21 +53,13 @@ function toProgressPercentage(loaded: number, total: number): number | null {
 
 export function downloadResumePdf(
   onProgress?: DownloadProgressCallback,
-  options?: DownloadResumePdfOptions,
 ): Promise<void> {
-  const createRequest =
-    options?.createRequest ??
-    (typeof XMLHttpRequest === "undefined"
-      ? null
-      : () => new XMLHttpRequest());
-
-  if (!createRequest) {
+  if (typeof XMLHttpRequest === "undefined") {
     return Promise.resolve();
   }
 
   return new Promise<void>((resolve, reject) => {
-    const request = createRequest();
-    const handleBlobDownload = options?.handleBlobDownload ?? triggerBlobDownload;
+    const request = new XMLHttpRequest();
     request.open("GET", RESUME_PDF_DOWNLOAD_URL, true);
     request.responseType = "blob";
 
@@ -84,7 +69,7 @@ export function downloadResumePdf(
 
     request.addEventListener("load", () => {
       if (request.status >= 200 && request.status < 300 && request.response) {
-        handleBlobDownload(request.response);
+        triggerBlobDownload(request.response);
         resolve();
         return;
       }
