@@ -57,6 +57,15 @@ describe("checkResumePdfAvailability", () => {
 });
 
 describe("downloadResumePdf", () => {
+  it("resolves without download when XMLHttpRequest is unavailable", async () => {
+    const originalXmlHttpRequest = globalThis.XMLHttpRequest;
+    vi.stubGlobal("XMLHttpRequest", undefined);
+
+    await expect(downloadResumePdf()).resolves.toBeUndefined();
+
+    vi.stubGlobal("XMLHttpRequest", originalXmlHttpRequest);
+  });
+
   it("reports progress and resolves on successful download", async () => {
     const request = new FakeXmlHttpRequest();
     const downloadBlobMock = vi.fn();
@@ -74,6 +83,7 @@ describe("downloadResumePdf", () => {
     request.status = 200;
     request.response = resumeBlob;
     request.emit("progress", { loaded: 25, total: 100 });
+    request.emit("progress", { loaded: 3, total: 0 });
     request.emit("load");
 
     await expect(promise).resolves.toBeUndefined();
@@ -82,7 +92,7 @@ describe("downloadResumePdf", () => {
       url: RESUME_PDF_DOWNLOAD_URL,
       async: true,
     });
-    expect(progressValues).toEqual([25]);
+    expect(progressValues).toEqual([25, null]);
     expect(downloadBlobMock).toHaveBeenCalledWith(resumeBlob);
   });
 
