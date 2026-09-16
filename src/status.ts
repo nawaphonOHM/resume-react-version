@@ -29,6 +29,11 @@ const faviconUrls: Record<AvailabilityStatus, string> = {
     "https://resume-images.ohm-mho.space/favicons/unavailable/favicon.svg",
 };
 
+function parseNumericPart(value: string | undefined): number {
+  const numericValue = Number(value ?? 0);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
 export function getAvailabilityStatus(instant: Date): AvailabilityStatus {
   const parts = Object.fromEntries(
     bangkokPartsFormatter
@@ -38,9 +43,9 @@ export function getAvailabilityStatus(instant: Date): AvailabilityStatus {
   );
 
   const dayOfWeek = weekdayMap[parts.weekday] ?? 0;
-  const hours = Number(parts.hour ?? 0);
-  const minutes = Number(parts.minute ?? 0);
-  const seconds = Number(parts.second ?? 0);
+  const hours = parseNumericPart(parts.hour) % 24;
+  const minutes = parseNumericPart(parts.minute);
+  const seconds = parseNumericPart(parts.second);
   const secondsSinceMidnight =
     hours * SECONDS_PER_HOUR + minutes * 60 + seconds;
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;

@@ -103,6 +103,7 @@ function App() {
   const [downloadAvailable, setDownloadAvailable] = useState<boolean | null>(
     null,
   );
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloadPending, setDownloadPending] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [confirmDownloadOpen, setConfirmDownloadOpen] = useState(false);
@@ -123,6 +124,10 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
     const timer = window.setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
@@ -149,6 +154,13 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (
+      typeof document === "undefined" ||
+      typeof IntersectionObserver === "undefined"
+    ) {
+      return;
+    }
+
     const ratios = new Map<ResumeSectionId, number>();
     const observer = new IntersectionObserver(
       (entries) => {
@@ -353,6 +365,7 @@ function App() {
   async function startResumeDownload() {
     setDownloadPending(true);
     setDownloadProgress(null);
+    setDownloadError(null);
 
     try {
       await downloadResumePdf((progress) => {
@@ -360,6 +373,11 @@ function App() {
       });
       setDownloadAvailable(true);
     } catch (error) {
+      setDownloadError(
+        error instanceof Error
+          ? error.message
+          : "Failed to download the hosted résumé PDF.",
+      );
       console.error(error);
     } finally {
       setDownloadPending(false);
@@ -496,6 +514,15 @@ function App() {
                       ? "Checking hosted résumé PDF availability."
                       : "The hosted résumé PDF is available for direct download."}
                 </p>
+                {downloadError && (
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className="text-sm text-rose-600 dark:text-rose-300"
+                  >
+                    {downloadError}
+                  </p>
+                )}
               </div>
             </Panel>
 
