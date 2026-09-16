@@ -4,6 +4,13 @@ export const RESUME_PDF_FILENAME =
   "nawaphon-isarathanachaikul-resume-profile.pdf";
 
 export type DownloadProgressCallback = (progress: number | null) => void;
+type DownloadBlobHandler = (blob: Blob) => void;
+type DownloadRequestFactory = () => XMLHttpRequest;
+
+export type DownloadResumePdfOptions = {
+  createRequest?: DownloadRequestFactory;
+  handleBlobDownload?: DownloadBlobHandler;
+};
 
 export async function checkResumePdfAvailability(
   signal?: AbortSignal,
@@ -43,35 +50,41 @@ function triggerBlobDownload(blob: Blob) {
   }, 0);
 }
 
+function toProgressPercentage(loaded: number, total: number): number | null {
+  if (!(typeof total === "number" && total > 0)) {
+    return null;
+  }
+
+  return Math.min(100, Math.max(0, Math.round((loaded / total) * 100)));
+}
+
 export function downloadResumePdf(
   onProgress?: DownloadProgressCallback,
+  options?: DownloadResumePdfOptions,
 ): Promise<void> {
-  if (typeof XMLHttpRequest === "undefined") {
+  const createRequest =
+    options?.createRequest ??
+    (typeof XMLHttpRequest === "undefined"
+      ? null
+      : () => new XMLHttpRequest());
+
+  if (!createRequest) {
     return Promise.resolve();
   }
 
   return new Promise<void>((resolve, reject) => {
-    const request = new XMLHttpRequest();
+    const request = createRequest();
+    const handleBlobDownload = options?.handleBlobDownload ?? triggerBlobDownload;
     request.open("GET", RESUME_PDF_DOWNLOAD_URL, true);
     request.responseType = "blob";
 
     request.addEventListener("progress", (event) => {
-      if (!(typeof event.total === "number" && event.total > 0)) {
-        onProgress?.(null);
-        return;
-      }
-
-      const percentage = Math.min(
-        100,
-        Math.max(0, Math.round((event.loaded / event.total) * 100)),
-      );
-
-      onProgress?.(percentage);
+      onProgress?.(toProgressPercentage(event.loaded, event.total));
     });
 
     request.addEventListener("load", () => {
       if (request.status >= 200 && request.status < 300 && request.response) {
-        triggerBlobDownload(request.response);
+        handleBlobDownload(request.response);
         resolve();
         return;
       }
