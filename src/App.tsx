@@ -119,6 +119,10 @@ function App() {
   const lastConfirmFocusedElementRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
+    if (typeof document === "undefined" || typeof window === "undefined") {
+      return;
+    }
+
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
@@ -378,7 +382,6 @@ function App() {
           ? error.message
           : "Failed to download the hosted résumé PDF.",
       );
-      console.error(error);
     } finally {
       setDownloadPending(false);
       setDownloadProgress(null);

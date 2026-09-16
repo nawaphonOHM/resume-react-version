@@ -124,7 +124,9 @@ export function syncFavicon(url: string) {
   }
 
   const faviconLinks = Array.from(
-    document.head.querySelectorAll<HTMLLinkElement>('link[rel~="icon"]'),
+    document.head.querySelectorAll<HTMLLinkElement>(
+      'link[rel~="icon"], link[rel="mask-icon"]',
+    ),
   );
 
   if (faviconLinks.length === 0) {
