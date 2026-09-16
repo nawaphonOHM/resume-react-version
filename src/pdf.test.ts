@@ -61,9 +61,11 @@ describe("downloadResumePdf", () => {
     const originalXmlHttpRequest = globalThis.XMLHttpRequest;
     vi.stubGlobal("XMLHttpRequest", undefined);
 
-    await expect(downloadResumePdf()).resolves.toBeUndefined();
-
-    vi.stubGlobal("XMLHttpRequest", originalXmlHttpRequest);
+    try {
+      await expect(downloadResumePdf()).resolves.toBeUndefined();
+    } finally {
+      vi.stubGlobal("XMLHttpRequest", originalXmlHttpRequest);
+    }
   });
 
   it("reports progress and resolves on successful download", async () => {
