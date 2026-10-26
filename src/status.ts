@@ -28,7 +28,12 @@ const faviconUrls: Record<AvailabilityStatus, string> = {
     "https://resume-images.ohm-mho.space/favicons/unavailable/favicon.svg",
 };
 
-export function getAvailabilityStatus(instant: Date): AvailabilityStatus {
+interface BangkokTime {
+  dayOfWeek: number;
+  secondsSinceMidnight: number;
+}
+
+function getBangkokTime(instant: Date): BangkokTime {
   const parts = Object.fromEntries(
     bangkokPartsFormatter
       .formatToParts(instant)
@@ -37,42 +42,46 @@ export function getAvailabilityStatus(instant: Date): AvailabilityStatus {
   );
 
   const dayOfWeek = weekdayMap[parts.weekday] ?? 0;
-  const hours = Number(parts.hour ?? 0);
-  const minutes = Number(parts.minute ?? 0);
-  const seconds = Number(parts.second ?? 0);
-  const secondsSinceMidnight =
-    hours * SECONDS_PER_HOUR + minutes * 60 + seconds;
-  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+  const hours = Number(parts.hour);
+  const minutes = Number(parts.minute);
+  const seconds = Number(parts.second);
 
-  if (secondsSinceMidnight < 6 * SECONDS_PER_HOUR) {
-    return "unavailable";
-  }
+  return {
+    dayOfWeek,
+    secondsSinceMidnight: hours * SECONDS_PER_HOUR + minutes * 60 + seconds,
+  };
+}
 
-  if (secondsSinceMidnight >= 22 * SECONDS_PER_HOUR) {
-    return "unavailable";
-  }
+function getWeekdayStatus(secondsSinceMidnight: number): AvailabilityStatus {
+  const isMorningWork =
+    secondsSinceMidnight >= 9 * SECONDS_PER_HOUR &&
+    secondsSinceMidnight < 12 * SECONDS_PER_HOUR;
+  const isAfternoonWork =
+    secondsSinceMidnight >= 13 * SECONDS_PER_HOUR &&
+    secondsSinceMidnight < 18 * SECONDS_PER_HOUR;
 
-  if (isWeekend) {
-    return "limited";
-  }
-
-  if (secondsSinceMidnight < 9 * SECONDS_PER_HOUR) {
-    return "limited";
-  }
-
-  if (secondsSinceMidnight < 12 * SECONDS_PER_HOUR) {
-    return "available";
-  }
-
-  if (secondsSinceMidnight < 13 * SECONDS_PER_HOUR) {
-    return "limited";
-  }
-
-  if (secondsSinceMidnight < 18 * SECONDS_PER_HOUR) {
+  if (isMorningWork || isAfternoonWork) {
     return "available";
   }
 
   return "limited";
+}
+
+export function getAvailabilityStatus(instant: Date): AvailabilityStatus {
+  const { dayOfWeek, secondsSinceMidnight } = getBangkokTime(instant);
+
+  if (
+    secondsSinceMidnight < 6 * SECONDS_PER_HOUR ||
+    secondsSinceMidnight >= 22 * SECONDS_PER_HOUR
+  ) {
+    return "unavailable";
+  }
+
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return "limited";
+  }
+
+  return getWeekdayStatus(secondsSinceMidnight);
 }
 
 export function getAvailabilityLabel(status: AvailabilityStatus): string {
@@ -112,7 +121,7 @@ export function getFaviconUrlForStatus(status: AvailabilityStatus): string {
   return faviconUrls[status];
 }
 
-export function syncFavicon(url: string) {
+export function syncFavicon(url: string): void {
   if (typeof document === "undefined") {
     return;
   }

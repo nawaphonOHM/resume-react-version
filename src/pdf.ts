@@ -23,17 +23,22 @@ export async function checkResumePdfAvailability(
   }
 }
 
-function triggerBlobDownload(blob: Blob) {
+function createDownloadAnchor(objectUrl: string): HTMLAnchorElement {
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = RESUME_PDF_FILENAME;
+  anchor.hidden = true;
+  return anchor;
+}
+
+function triggerBlobDownload(blob: Blob): void {
   if (typeof document === "undefined" || typeof window === "undefined") {
     return;
   }
 
   const objectUrl = window.URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
+  const anchor = createDownloadAnchor(objectUrl);
 
-  anchor.href = objectUrl;
-  anchor.download = RESUME_PDF_FILENAME;
-  anchor.hidden = true;
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
@@ -70,15 +75,18 @@ export function downloadResumePdf(
     });
 
     request.addEventListener("load", () => {
-      if (request.status >= 200 && request.status < 300 && request.response) {
+      if (
+        request.status >= 200 &&
+        request.status < 300 &&
+        request.response instanceof Blob
+      ) {
         triggerBlobDownload(request.response);
         resolve();
         return;
       }
 
-      reject(
-        new Error(`Failed to download resume PDF (${request.status || 0}).`),
-      );
+      const statusCode = String(request.status || 0);
+      reject(new Error(`Failed to download resume PDF (${statusCode}).`));
     });
 
     request.addEventListener("error", () => {
