@@ -20,51 +20,63 @@ Open `http://localhost:5173/`. The development server reloads when source files 
 
 ## Architecture & Component Graph
 
-The project follows a compact React + Vite architecture with one application shell, typed canonical résumé data, browser-only UI state, remote asset integration, and a hosted PDF download flow.
+The project follows a modular React + Vite architecture with a lightweight composition root (`App.tsx`), typed canonical résumé data, domain custom hooks, decomposed layout and section components, remote asset integration, and a hosted PDF download flow.
 
 ```mermaid
 graph TD
-    subgraph Entry["Application Shell"]
+    subgraph Entry["Application Shell & Layout"]
         MAIN["main.tsx"] --> APP["App.tsx"]
+        APP --> HEADER["Header.tsx"]
+        APP --> CONTENT["ResumeContent.tsx"]
+        APP --> FOOTER["Footer.tsx"]
         MAIN --> RING["Ring UI global styles"]
         MAIN --> TAILWIND["index.css + Tailwind CSS"]
     end
 
-    subgraph PageLayer["Rendered Resume Sections"]
-        APP --> NAV["Sticky header navigation"]
-        APP --> HERO["About / hero section"]
-        APP --> SUMMARY["Summary section"]
-        APP --> EXPERIENCE["Experience timeline"]
-        APP --> EDUCATION["Education section"]
-        APP --> SKILLS["Skills section"]
-        APP --> PROFILE["Profile section"]
-        APP --> ZOOM["Logo preview dialog"]
-        APP --> PDF_DIALOG["PDF confirmation dialog"]
+    subgraph Sections["Resume Sections & Dialogs"]
+        CONTENT --> HERO["AboutSection.tsx"]
+        CONTENT --> SUMMARY["SummarySection.tsx"]
+        CONTENT --> EXPERIENCE["ExperienceSection.tsx"]
+        CONTENT --> EDUCATION["EducationSection.tsx"]
+        CONTENT --> SKILLS["SkillsSection.tsx"]
+        CONTENT --> PROFILE["ProfileSection.tsx"]
+        APP --> ZOOM["ImageZoomDialog.tsx"]
+        APP --> PDF_DIALOG["DownloadConfirmDialog.tsx"]
+    end
+
+    subgraph Hooks["Domain Custom Hooks"]
+        APP --> HOOK_THEME["useTheme"]
+        APP --> HOOK_ACTIVE["useActiveSection"]
+        APP --> HOOK_CLOCK["useBangkokClock"]
+        APP --> HOOK_DOWNLOAD["useResumeDownload"]
+        ZOOM & PDF_DIALOG --> HOOK_TRAP["useDialogFocusTrap"]
     end
 
     subgraph DataLayer["Canonical Data & Types"]
-        DATA["resume-data.ts"] --> APP
-        DATA --> NAV
+        DATA["resume-data.ts"] --> CONTENT
+        DATA --> HEADER
     end
 
     subgraph Runtime["Browser-only Runtime Behavior"]
-        APP --> THEME["Theme persistence via localStorage"]
-        APP --> OBSERVER["IntersectionObserver active section tracking"]
-        APP --> STATUS["status.ts availability schedule"]
+        HOOK_THEME --> THEME["Theme persistence via localStorage"]
+        HOOK_ACTIVE --> OBSERVER["IntersectionObserver active section tracking"]
+        HOOK_CLOCK --> STATUS["status.ts availability schedule"]
         STATUS --> FAVICON["Dynamic favicon synchronization"]
-        APP --> PDF["pdf.ts hosted download flow"]
+        HOOK_DOWNLOAD --> PDF["pdf.ts hosted download flow"]
         PDF --> HEAD["HEAD availability check"]
         PDF --> STREAM["XHR download progress"]
-        APP --> PRINT["window.print()"]
+        HEADER --> PRINT["window.print()"]
     end
 
     subgraph Assets["Remote Assets"]
-        APP -.->|logos, favicons, hosted PDF| DO["DigitalOcean Spaces"]
+        CONTENT & ZOOM -.->|logos, favicons, hosted PDF| DO["DigitalOcean Spaces"]
     end
 ```
 
-- **Application Shell:** `src/main.tsx` mounts the React app and imports the shared Ring UI and Tailwind-driven global styles.
-- **Single Page UI:** `src/App.tsx` renders the full résumé page, including navigation, theme controls, hosted PDF controls, confirmation dialog, zoom dialog, and all résumé sections.
+- **Application Shell:** `src/main.tsx` mounts the React application with a defensive DOM root check and imports shared Ring UI and Tailwind-driven global styles.
+- **Composition Root:** `src/App.tsx` serves as a clean composition root delegating state and presentation to domain hooks and layout containers.
+- **Modular UI Components:** `src/components/` organizes components into structural layout (`Header`, `Footer`, `ResumeContent`), modular sections (`AboutSection`, `SummarySection`, `ExperienceSection`, `EducationSection`, `SkillsSection`, `ProfileSection`), accessible modal overlays (`DownloadConfirmDialog`, `ImageZoomDialog`), and common controls (`LogoButton`).
+- **Custom Domain Hooks:** `src/hooks/` isolates browser and application behaviors into reusable hooks (`useTheme`, `useBangkokClock`, `useActiveSection`, `useDialogFocusTrap`, `useResumeDownload`).
 - **Typed Canonical Data:** `src/resume-data.ts` defines the résumé contracts, section registry, and publishable résumé content used throughout the app.
 - **Availability & Favicon Logic:** `src/status.ts` resolves Bangkok-time availability states and maps them to dynamic favicon URLs and badge presentation.
 - **Hosted PDF Download Flow:** `src/pdf.ts` checks hosted PDF availability with a `HEAD` request, streams the file with progress reporting, and triggers browser download through a blob URL.
@@ -75,28 +87,28 @@ To understand and maintain the implementation, familiarity with the following co
 
 ### 1. Component-driven UI composition
 
-- **Single-page composition:** `App.tsx` renders the full résumé as one React tree while keeping content and UI rules outside the JSX where practical.
+- **Single-page composition:** `App.tsx` coordinates domain hooks and layout containers while keeping presentation and business logic separated into dedicated components.
 - **Typed UI contracts:** résumé content is modeled with TypeScript interfaces so content edits remain structurally consistent across sections.
 
 ### 2. Timezone-based state machines
 
 - **Bangkok availability scheduling:** `src/status.ts` derives availability from weekday and time boundaries in the `Asia/Bangkok` timezone, distinguishing `available`, `limited`, and `unavailable` states.
-- **Time-derived presentation:** the live clock, availability badge, and favicon all react to the same current instant so the UI remains consistent.
+- **Time-derived presentation:** the live clock (`useBangkokClock`), availability badge, and favicon all react to the same current instant so the UI remains consistent.
 
 ### 3. Browser state synchronization
 
-- **Persistent theme preference:** the active light/dark theme is synchronized with `localStorage` and reflected through `data-theme` on the document root (`src/App.tsx`).
-- **Dynamic favicon switching:** the active availability state is mapped to a remote favicon variant and synchronized with the document head (`src/status.ts`, `src/App.tsx`).
+- **Persistent theme preference:** the active light/dark theme is synchronized with `localStorage` and reflected through `data-theme` on the document root (`src/hooks/use-theme.ts`).
+- **Dynamic favicon switching:** the active availability state is mapped to a remote favicon variant and synchronized with the document head (`src/status.ts`, `src/hooks/use-bangkok-clock.ts`).
 
 ### 4. Viewport observation and navigation state
 
-- **IntersectionObserver section tracking:** visible sections are observed in the browser so the sticky navigation can highlight the most active section as the user scrolls (`src/App.tsx`).
-- **Anchor-based navigation:** section links use hash fragments and smooth scrolling for in-page navigation (`src/App.tsx`, `src/index.css`).
+- **IntersectionObserver section tracking:** visible sections are observed in the browser so sticky navigation highlights the active section during scrolling (`src/hooks/use-active-section.ts`).
+- **Anchor-based navigation:** section links use hash fragments and smooth scrolling for in-page navigation (`src/components/layout/Header.tsx`, `src/index.css`).
 
 ### 5. Accessibility and focus management
 
-- **Modal keyboard support:** both the zoom dialog and PDF confirmation dialog move focus into the dialog, support Escape dismissal, cycle focus within the modal, and restore focus to the prior trigger when closed (`src/App.tsx`).
-- **Accessible controls:** theme, download, zoom, and close controls expose explicit labels, state, and busy feedback (`src/App.tsx`).
+- **Modal keyboard support:** both the zoom dialog and PDF confirmation dialog move focus into the dialog, trap focus, support Escape dismissal, and restore focus to the prior trigger on dismissal (`src/hooks/use-dialog-focus-trap.ts`).
+- **Accessible controls:** theme, download, zoom, and close controls expose explicit labels, state, and busy feedback.
 
 ### 6. Client-side file transfer orchestration
 
@@ -147,12 +159,11 @@ The downloaded filename is fixed as:
 ```bash
 npm run format:check
 npm run lint
+npm run test
 npm run build
 ```
 
-Prettier verifies formatting, ESLint checks the TypeScript/React source, and the production build validates TypeScript compilation plus the Vite bundle.
-
-This repository does not currently define an `npm test` script.
+Prettier verifies formatting, ESLint checks the TypeScript/React source, Vitest executes the automated unit tests, and the production build validates TypeScript compilation plus the Vite bundle.
 
 ## Production build
 
@@ -170,10 +181,12 @@ The output is host-neutral and requires no backend, runtime API, or server-side 
 
 ## Useful scripts
 
-| Command                | Purpose                                   |
-| ---------------------- | ----------------------------------------- |
-| `npm run dev`          | Run the Vite development server.          |
-| `npm run build`        | Produce the static production build.      |
-| `npm run lint`         | Run ESLint across the repository.         |
-| `npm run preview`      | Preview the production build locally.     |
-| `npm run format:check` | Verify formatting without changing files. |
+| Command                | Purpose                                      |
+| ---------------------- | -------------------------------------------- |
+| `npm run dev`          | Run the Vite development server.             |
+| `npm run build`        | Produce the static production build.         |
+| `npm run lint`         | Run ESLint across the repository.            |
+| `npm run test`         | Run the automated test suite with Vitest.    |
+| `npm run preview`      | Preview the production build locally.        |
+| `npm run format:check` | Verify formatting without changing files.    |
+| `npm run format`       | Auto-format repository files using Prettier. |
