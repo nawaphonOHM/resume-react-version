@@ -117,6 +117,117 @@ export function getAvailabilityDotClass(status: AvailabilityStatus): string {
   }
 }
 
+export const STATUS_COLORS: Record<AvailabilityStatus, string> = {
+  available: "#92C353",
+  limited: "#F7A600",
+  unavailable: "#D1D1D1",
+};
+
+export function getStatusColor(status: AvailabilityStatus): string {
+  return STATUS_COLORS[status];
+}
+
+export function gcd(a: number, b: number): number {
+  let x = Math.abs(Math.round(a));
+  let y = Math.abs(Math.round(b));
+  while (y !== 0) {
+    const t = y;
+    y = x % y;
+    x = t;
+  }
+  return x || 1;
+}
+
+export interface StatusLuminanceOptions {
+  amplitude?: number;
+  omega?: number;
+  phi?: number;
+}
+
+const DEFAULT_LUMINANCE_OPTIONS: Required<StatusLuminanceOptions> = {
+  amplitude: 0.5,
+  omega: Math.PI,
+  phi: 0,
+};
+
+/**
+ * Calculates oscillating relative luminance value L(t) in [0, 1] using simple harmonic oscillator.
+ * x(t) = A * cos(omega * t + phi)
+ * L(t) = clamp(0.5 + x(t), 0, 1)
+ */
+export function calculateStatusLuminance(
+  elapsedSeconds: number,
+  options?: StatusLuminanceOptions,
+): number {
+  const opts = { ...DEFAULT_LUMINANCE_OPTIONS, ...options };
+  const x_t = opts.amplitude * Math.cos(opts.omega * elapsedSeconds + opts.phi);
+  return Math.min(1, Math.max(0, 0.5 + x_t));
+}
+
+export interface HeroCodePosition2D {
+  x: number;
+  y: number;
+}
+
+export interface HeroCodeOrbitPositions {
+  left: HeroCodePosition2D;
+  right: HeroCodePosition2D;
+}
+
+export interface HeroCodePositionOptions {
+  omega?: number;
+  phiLeft?: number;
+  phiRight?: number;
+  rLeft?: number;
+  rRight?: number;
+}
+
+const DEFAULT_HERO_CODE_OPTIONS: Required<HeroCodePositionOptions> = {
+  omega: 0.15,
+  phiLeft: 0,
+  phiRight: 0,
+  rLeft: 37,
+  rRight: 50,
+};
+
+function getOrbitalPeriod(
+  omega: number,
+  rLeft: number,
+  rRight: number,
+): number {
+  if (omega <= 0 || rLeft <= 0 || rRight <= 0) {
+    return 0;
+  }
+  const g = gcd(rLeft, rRight);
+  return (2 * Math.PI * (rLeft / g)) / omega;
+}
+
+/**
+ * Calculates continuous 2D circular orbital positions for hero code badges.
+ */
+export function calculateHeroCodePosition(
+  elapsedSeconds: number,
+  options?: HeroCodePositionOptions,
+): HeroCodeOrbitPositions {
+  const opts = { ...DEFAULT_HERO_CODE_OPTIONS, ...options };
+  const period = getOrbitalPeriod(opts.omega, opts.rLeft, opts.rRight);
+  const t = period > 0 ? elapsedSeconds % period : elapsedSeconds;
+
+  const leftAngle = opts.omega * (opts.rRight / opts.rLeft) * t + opts.phiLeft;
+  const rightAngle = opts.omega * t + opts.phiRight;
+
+  return {
+    left: {
+      x: opts.rLeft * Math.cos(leftAngle),
+      y: opts.rLeft * Math.sin(leftAngle),
+    },
+    right: {
+      x: opts.rRight * Math.cos(rightAngle),
+      y: opts.rRight * Math.sin(rightAngle),
+    },
+  };
+}
+
 export function getFaviconUrlForStatus(status: AvailabilityStatus): string {
   return faviconUrls[status];
 }

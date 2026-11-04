@@ -1,10 +1,16 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+  calculateHeroCodePosition,
+  calculateStatusLuminance,
+  gcd,
   getAvailabilityBadgeClass,
   getAvailabilityDotClass,
   getAvailabilityLabel,
   getAvailabilityStatus,
   getFaviconUrlForStatus,
+  getStatusColor,
+  STATUS_COLORS,
   syncFavicon,
   type AvailabilityStatus,
 } from "./status";
@@ -103,7 +109,7 @@ describe("getAvailabilityStatus", () => {
   });
 });
 
-describe("presentation and helper mappings", () => {
+describe("status presentation mappings", () => {
   it("maps availability statuses to descriptive labels", () => {
     expect(getAvailabilityLabel("available")).toBe(
       "Available in Bangkok business hours",
@@ -130,6 +136,52 @@ describe("presentation and helper mappings", () => {
     expect(getAvailabilityDotClass("available")).toContain("bg-emerald-500");
     expect(getAvailabilityDotClass("limited")).toContain("bg-amber-500");
     expect(getAvailabilityDotClass("unavailable")).toContain("bg-slate-400");
+  });
+
+  it("maps availability statuses to exact status color hex strings", () => {
+    expect(STATUS_COLORS.available).toBe("#92C353");
+    expect(STATUS_COLORS.limited).toBe("#F7A600");
+    expect(STATUS_COLORS.unavailable).toBe("#D1D1D1");
+  });
+
+  it("retrieves status colors via getStatusColor", () => {
+    expect(getStatusColor("available")).toBe("#92C353");
+    expect(getStatusColor("limited")).toBe("#F7A600");
+    expect(getStatusColor("unavailable")).toBe("#D1D1D1");
+  });
+});
+
+describe("mathematical and asset helpers", () => {
+  it("calculates greatest common divisor accurately", () => {
+    expect(gcd(37, 50)).toBe(1);
+    expect(gcd(12, 18)).toBe(6);
+    expect(gcd(0, 10)).toBe(10);
+    expect(gcd(10, 0)).toBe(10);
+  });
+
+  it("calculates status luminance bounded in [0, 1]", () => {
+    // at t=0, cos(0)=1 => L = 0.5 + 0.5 = 1.0
+    expect(calculateStatusLuminance(0)).toBeCloseTo(1.0);
+    // at t=1, cos(pi)=-1 => L = 0.5 - 0.5 = 0.0
+    expect(calculateStatusLuminance(1)).toBeCloseTo(0.0);
+    // at t=0.5, cos(pi/2)=0 => L = 0.5
+    expect(calculateStatusLuminance(0.5)).toBeCloseTo(0.5);
+    // with custom amplitude & phi
+    expect(
+      calculateStatusLuminance(0, { amplitude: 0.25, phi: 0 }),
+    ).toBeCloseTo(0.75);
+  });
+
+  it("calculates 2D orbital coordinates for hero code tokens", () => {
+    const pos = calculateHeroCodePosition(0);
+    expect(pos.left.x).toBeCloseTo(37);
+    expect(pos.left.y).toBeCloseTo(0);
+    expect(pos.right.x).toBeCloseTo(50);
+    expect(pos.right.y).toBeCloseTo(0);
+
+    const customPos = calculateHeroCodePosition(0, { rLeft: 40, rRight: 60 });
+    expect(customPos.left.x).toBeCloseTo(40);
+    expect(customPos.right.x).toBeCloseTo(60);
   });
 
   it("maps availability statuses to favicon asset URLs", () => {

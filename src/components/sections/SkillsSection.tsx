@@ -1,7 +1,15 @@
 import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
 import { resumeData } from "../../resume-data";
 
-export function SkillsSection() {
+export interface SkillsSectionProps {
+  skills?: readonly string[] | string[];
+}
+
+export function SkillsSection({
+  skills: propsSkills,
+}: SkillsSectionProps = {}) {
+  const skills = propsSkills ?? resumeData.skills;
+
   return (
     <section id="skills" className="scroll-mt-36">
       <div className="mb-4">
@@ -15,7 +23,7 @@ export function SkillsSection() {
 
       <Panel className="rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm">
         <div className="flex flex-wrap gap-3">
-          {resumeData.skills.map((skill) => (
+          {skills.map((skill) => (
             <span
               key={skill}
               className="rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-raised)] px-4 py-2 text-sm font-medium text-[var(--app-heading)]"

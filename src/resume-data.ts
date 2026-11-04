@@ -1,3 +1,5 @@
+import { imageAssetBaseUrl } from "./data/technology-icons";
+
 export type ResumeSectionId =
   "about" | "summary" | "experience" | "education" | "skills" | "profile";
 
@@ -6,6 +8,16 @@ export interface ImageAsset {
   width: number;
   height: number;
   surface: "light" | "dark";
+}
+
+export interface ClientCompany {
+  name: string;
+  logo: ImageAsset;
+}
+
+export interface ResumeProject {
+  name: string;
+  url: string;
 }
 
 export interface ResumeLink {
@@ -18,10 +30,7 @@ export interface ResumeExperience {
   role: string;
   company: string;
   companyLogo: ImageAsset;
-  client?: {
-    name: string;
-    logo: ImageAsset;
-  };
+  client?: ClientCompany;
   location: string;
   period: string;
   employmentTypes: string[];
@@ -29,36 +38,35 @@ export interface ResumeExperience {
   technologies: string[];
 }
 
+export type Experience = ResumeExperience;
+
 export interface ResumeEducation {
   degree: string;
   institution: string;
   institutionLogo: ImageAsset;
   period: string;
   gpax: string;
-  seniorProject: {
-    name: string;
-    url: string;
-  };
+  seniorProject: ResumeProject;
+}
+
+export interface ResumeDetails {
+  location: string;
+  phoneLabel: string;
+  email: string;
+  nationality: string;
+  birthDate: string;
 }
 
 export interface ResumeProfile {
   name: string;
   title: string;
   summary: string[];
-  details: {
-    location: string;
-    phoneLabel: string;
-    email: string;
-    nationality: string;
-    birthDate: string;
-  };
+  details: ResumeDetails;
   links: ResumeLink[];
   skills: string[];
   experience: ResumeExperience[];
   education: ResumeEducation;
 }
-
-const imageAssetBaseUrl = "https://resume-images.ohm-mho.space";
 
 export const resumeSections: Array<{ id: ResumeSectionId; label: string }> = [
   { id: "about", label: "About" },

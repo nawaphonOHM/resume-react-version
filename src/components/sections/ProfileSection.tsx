@@ -1,7 +1,13 @@
 import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
-import { resumeData, type ResumeLink } from "../../resume-data";
+import {
+  resumeData,
+  type ResumeDetails,
+  type ResumeLink,
+} from "../../resume-data";
 
 export interface ProfileSectionProps {
+  details?: ResumeDetails;
+  links?: readonly ResumeLink[] | ResumeLink[];
   onSelectImage: (image: { src: string; alt: string }) => void;
 }
 
@@ -54,7 +60,14 @@ function ProfileLinkCard({ link, onSelectImage }: ProfileLinkCardProps) {
   );
 }
 
-export function ProfileSection({ onSelectImage }: ProfileSectionProps) {
+export function ProfileSection({
+  details: propsDetails,
+  links: propsLinks,
+  onSelectImage,
+}: ProfileSectionProps) {
+  const details = propsDetails ?? resumeData.details;
+  const links = propsLinks ?? resumeData.links;
+
   return (
     <section id="profile" className="scroll-mt-36">
       <div className="mb-4">
@@ -72,31 +85,31 @@ export function ProfileSection({ onSelectImage }: ProfileSectionProps) {
             <div>
               <dt className="text-sm text-[var(--app-muted)]">Email</dt>
               <dd className="mt-1 text-base font-medium text-[var(--app-heading)]">
-                {resumeData.details.email}
+                {details.email}
               </dd>
             </div>
             <div>
               <dt className="text-sm text-[var(--app-muted)]">Phone</dt>
               <dd className="mt-1 text-base font-medium text-[var(--app-heading)]">
-                {resumeData.details.phoneLabel}
+                {details.phoneLabel}
               </dd>
             </div>
             <div>
               <dt className="text-sm text-[var(--app-muted)]">Nationality</dt>
               <dd className="mt-1 text-base font-medium text-[var(--app-heading)]">
-                {resumeData.details.nationality}
+                {details.nationality}
               </dd>
             </div>
             <div>
               <dt className="text-sm text-[var(--app-muted)]">Birth date</dt>
               <dd className="mt-1 text-base font-medium text-[var(--app-heading)]">
-                {resumeData.details.birthDate}
+                {details.birthDate}
               </dd>
             </div>
           </dl>
 
           <div className="space-y-3">
-            {resumeData.links.map((link) => (
+            {links.map((link) => (
               <ProfileLinkCard
                 key={link.label}
                 link={link}

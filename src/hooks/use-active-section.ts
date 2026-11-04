@@ -42,6 +42,10 @@ export function useActiveSection(initialSection: ResumeSectionId = "about") {
     useState<ResumeSectionId>(initialSection);
 
   useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") {
+      return;
+    }
+
     const ratios = new Map<ResumeSectionId, number>();
     const observer = new IntersectionObserver((entries) => {
       const bestSection = findBestSection(entries, ratios);

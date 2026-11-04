@@ -4,13 +4,65 @@ import {
   ImageZoomDialog,
   type ZoomImage,
 } from "./components/dialogs/ImageZoomDialog";
+import { ErrorView } from "./components/layout/ErrorView";
 import { Footer } from "./components/layout/Footer";
 import { Header } from "./components/layout/Header";
-import { ResumeContent } from "./components/layout/ResumeContent";
+import { LoadingView } from "./components/layout/LoadingView";
+import {
+  ResumeContent,
+  type ResumeContentProps,
+} from "./components/layout/ResumeContent";
 import { useActiveSection } from "./hooks/use-active-section";
 import { useBangkokClock } from "./hooks/use-bangkok-clock";
+import { useResumeData } from "./hooks/use-resume-data";
 import { useResumeDownload } from "./hooks/use-resume-download";
 import { useTheme } from "./hooks/use-theme";
+import type { ResumeProfile } from "./resume-data";
+
+interface HeaderIdentity {
+  name: string;
+  title: string;
+  location: string;
+}
+
+function resolveProfileIdentity(profile?: ResumeProfile): HeaderIdentity {
+  if (!profile) {
+    return {
+      name: "",
+      title: "",
+      location: "",
+    };
+  }
+  return {
+    name: profile.name,
+    title: profile.title,
+    location: profile.details.location,
+  };
+}
+
+interface MainContentParams {
+  isLoading: boolean;
+  isErrorVisible: boolean;
+  progress: number;
+  onRetry: () => void;
+  contentProps: ResumeContentProps;
+}
+
+function renderMainContent({
+  isLoading,
+  isErrorVisible,
+  progress,
+  onRetry,
+  contentProps,
+}: MainContentParams) {
+  if (isLoading) {
+    return <LoadingView progress={progress} />;
+  }
+  if (isErrorVisible) {
+    return <ErrorView onRetry={onRetry} />;
+  }
+  return <ResumeContent {...contentProps} />;
+}
 
 function App() {
   const { theme, toggleTheme } = useTheme();
@@ -18,10 +70,14 @@ function App() {
   const clock = useBangkokClock();
   const download = useResumeDownload();
   const [zoomImage, setZoomImage] = useState<ZoomImage | null>(null);
+  const { profile, isLoading, hasError, progress, reloadAll } = useResumeData();
+  const identity = resolveProfileIdentity(profile);
 
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
       <Header
+        name={identity.name}
+        title={identity.title}
         activeSection={activeSection}
         theme={theme}
         onToggleTheme={toggleTheme}
@@ -33,16 +89,26 @@ function App() {
         }}
       />
 
-      <ResumeContent
-        availabilityStatus={clock.availabilityStatus}
-        availabilityLabel={clock.availabilityLabel}
-        bangkokTime={clock.bangkokTime}
-        bangkokHour={clock.bangkokHour}
-        downloadAvailable={download.downloadAvailable}
-        onSelectImage={setZoomImage}
-      />
+      {renderMainContent({
+        isLoading,
+        isErrorVisible: hasError && !profile,
+        progress,
+        onRetry: reloadAll,
+        contentProps: {
+          profile,
+          availabilityStatus: clock.availabilityStatus,
+          availabilityLabel: clock.availabilityLabel,
+          bangkokTime: clock.bangkokTime,
+          downloadAvailable: download.downloadAvailable,
+          onSelectImage: setZoomImage,
+        },
+      })}
 
-      <Footer />
+      <Footer
+        name={identity.name}
+        title={identity.title}
+        location={identity.location}
+      />
 
       <DownloadConfirmDialog
         isOpen={download.confirmDownloadOpen}

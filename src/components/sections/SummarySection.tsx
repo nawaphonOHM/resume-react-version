@@ -1,35 +1,55 @@
 import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
 import { resumeData } from "../../resume-data";
 
-export function SummarySection() {
+export interface SummarySectionProps {
+  summary?: readonly string[] | string[];
+  items?: readonly string[] | string[];
+}
+
+export function SummarySection({ summary, items }: SummarySectionProps = {}) {
+  const summaryList = summary ?? items ?? resumeData.summary;
+
   return (
-    <section id="summary" className="scroll-mt-36">
-      <div className="mb-4">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--app-accent)]">
-          Professional summary
+    <section
+      id="summary"
+      className="scroll-mt-36 py-8 sm:py-12"
+      aria-labelledby="summary-title"
+    >
+      <div className="section-heading grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] md:items-end">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--app-accent)] sm:text-sm">
+            Professional summary
+          </p>
+          <h2
+            id="summary-title"
+            className="mt-2 text-3xl font-bold tracking-tight text-[var(--app-heading)] sm:text-4xl lg:text-5xl"
+          >
+            From interface to infrastructure
+          </h2>
+        </div>
+        <p className="text-base leading-relaxed text-[var(--app-muted)] sm:text-lg">
+          Practical experience across front-end delivery, APIs, data operations,
+          automation, and containerized systems.
         </p>
-        <h2 className="mt-2 text-3xl font-semibold text-[var(--app-heading)]">
-          What I deliver
-        </h2>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {resumeData.summary.map((item, index) => (
-          <Panel
-            key={item}
-            className="rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm"
-          >
-            <div className="flex items-start gap-4">
-              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--app-accent-soft)] text-lg font-semibold text-[var(--app-heading)]">
-                {index + 1}
+      <ol className="mt-8 grid list-none gap-4 p-0 md:grid-cols-2">
+        {summaryList.map((item, index) => (
+          <li key={item} className="print-break-inside-avoid">
+            <Panel className="summary-card flex h-full items-start gap-4 rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm transition hover:border-[color:var(--app-accent)] hover:shadow-md">
+              <span
+                className="summary-number inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[color:var(--app-accent-soft)] text-sm font-bold tracking-wider text-[var(--app-accent)]"
+                aria-hidden="true"
+              >
+                {String(index + 1).padStart(2, "0")}
               </span>
-              <p className="text-base leading-7 text-[var(--app-muted)]">
+              <p className="m-0 text-base leading-relaxed text-[var(--app-text)]">
                 {item}
               </p>
-            </div>
-          </Panel>
+            </Panel>
+          </li>
         ))}
-      </div>
+      </ol>
     </section>
   );
 }

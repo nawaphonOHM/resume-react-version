@@ -1,12 +1,10 @@
 import Button from "@jetbrains/ring-ui-built/components/button/button";
 import type { Theme } from "../../hooks/use-theme";
-import {
-  resumeData,
-  resumeSections,
-  type ResumeSectionId,
-} from "../../resume-data";
+import { resumeSections, type ResumeSectionId } from "../../resume-data";
 
 export interface HeaderProps {
+  name?: string;
+  title?: string;
   activeSection: ResumeSectionId;
   theme: Theme;
   onToggleTheme: () => void;
@@ -24,6 +22,8 @@ function getSectionLinkClass(isActive: boolean): string {
 }
 
 export function Header({
+  name = "",
+  title = "",
   activeSection,
   theme,
   onToggleTheme,
@@ -43,11 +43,9 @@ export function Header({
               React version
             </p>
             <h1 className="text-2xl font-semibold text-[var(--app-heading)]">
-              {resumeData.name}
+              {name}
             </h1>
-            <p className="text-sm text-[var(--app-muted)]">
-              {resumeData.title}
-            </p>
+            <p className="text-sm text-[var(--app-muted)]">{title}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
