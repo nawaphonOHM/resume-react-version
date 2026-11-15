@@ -3,6 +3,7 @@ import { useDialogFocusTrap } from "../../hooks/use-dialog-focus-trap";
 export interface ZoomImage {
   src: string;
   alt: string;
+  surface?: "light" | "dark";
 }
 
 export interface ImageZoomDialogProps {
@@ -59,7 +60,7 @@ export function ImageZoomDialog({ image, onClose }: ImageZoomDialogProps) {
         <img
           src={image.src}
           alt={image.alt}
-          className="max-h-[85vh] max-w-full rounded-3xl bg-white p-6 shadow-2xl"
+          className={`max-h-[75vh] max-w-full rounded-3xl p-6 shadow-2xl ${image.surface === "dark" ? "bg-[#071a2e]" : "bg-white"}`}
         />
         <p id="zoom-dialog-description" className="mt-3 text-sm text-white">
           {image.alt}

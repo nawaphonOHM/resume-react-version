@@ -4,16 +4,17 @@ import {
   type ResumeDetails,
   type ResumeLink,
 } from "../../resume-data";
+import type { ZoomImage } from "../dialogs/ImageZoomDialog";
 
 export interface ProfileSectionProps {
   details?: ResumeDetails;
   links?: readonly ResumeLink[] | ResumeLink[];
-  onSelectImage: (image: { src: string; alt: string }) => void;
+  onSelectImage: (image: ZoomImage) => void;
 }
 
 interface ProfileLinkCardProps {
   link: ResumeLink;
-  onSelectImage: (image: { src: string; alt: string }) => void;
+  onSelectImage: (image: ZoomImage) => void;
 }
 
 function ProfileLinkCard({ link, onSelectImage }: ProfileLinkCardProps) {
@@ -37,11 +38,12 @@ function ProfileLinkCard({ link, onSelectImage }: ProfileLinkCardProps) {
         <button
           type="button"
           aria-label={`Open enlarged ${logoAlt}`}
-          className="inline-flex rounded-xl border border-[color:var(--app-border)] bg-white/90 p-3"
+          className={`inline-flex rounded-xl border border-[color:var(--app-border)] p-3 ${logo.surface === "dark" ? "bg-[#071a2e]" : "bg-white/90"}`}
           onClick={() => {
             onSelectImage({
               src: logo.src,
               alt: logoAlt,
+              surface: logo.surface,
             });
           }}
         >
@@ -69,23 +71,53 @@ export function ProfileSection({
   const links = propsLinks ?? resumeData.links;
 
   return (
-    <section id="profile" className="scroll-mt-36">
-      <div className="mb-4">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--app-accent)]">
-          Public details
+    <section
+      id="profile"
+      data-resume-section
+      aria-labelledby="profile-title"
+      className="scroll-mt-24"
+    >
+      <div className="section-heading grid gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--app-accent)] sm:text-sm">
+            Public details
+          </p>
+          <h2
+            id="profile-title"
+            className="mt-2 text-3xl font-bold tracking-tight text-[var(--app-heading)]"
+          >
+            Profile and links
+          </h2>
+        </div>
+        <p className="max-w-2xl text-sm leading-relaxed text-[var(--app-muted)]">
+          Public contact and personal details from the résumé, with the phone
+          number kept private.
         </p>
-        <h2 className="mt-2 text-3xl font-semibold text-[var(--app-heading)]">
-          Profile
-        </h2>
       </div>
 
-      <Panel className="rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm">
-        <div className="space-y-6">
-          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <Panel className="profile-card rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm">
+          <div className="mb-5 flex items-center gap-3 border-b border-[color:var(--app-border)] pb-4">
+            <span
+              aria-hidden="true"
+              className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color:var(--app-accent-soft)] text-sm font-bold text-[var(--app-accent)]"
+            >
+              ID
+            </span>
             <div>
-              <dt className="text-sm text-[var(--app-muted)]">Email</dt>
+              <h3 className="font-semibold text-[var(--app-heading)]">
+                Profile details
+              </h3>
+              <p className="text-sm text-[var(--app-muted)]">
+                Public résumé information
+              </p>
+            </div>
+          </div>
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <dt className="text-sm text-[var(--app-muted)]">Location</dt>
               <dd className="mt-1 text-base font-medium text-[var(--app-heading)]">
-                {details.email}
+                {details.location}
               </dd>
             </div>
             <div>
@@ -95,19 +127,48 @@ export function ProfileSection({
               </dd>
             </div>
             <div>
+              <dt className="text-sm text-[var(--app-muted)]">Email</dt>
+              <dd className="mt-1 break-words text-base font-medium text-[var(--app-heading)]">
+                <a
+                  href={`mailto:${details.email}`}
+                  className="hover:text-[var(--app-accent)] hover:underline"
+                >
+                  {details.email}
+                </a>
+              </dd>
+            </div>
+            <div>
               <dt className="text-sm text-[var(--app-muted)]">Nationality</dt>
               <dd className="mt-1 text-base font-medium text-[var(--app-heading)]">
                 {details.nationality}
               </dd>
             </div>
             <div>
-              <dt className="text-sm text-[var(--app-muted)]">Birth date</dt>
+              <dt className="text-sm text-[var(--app-muted)]">Date of birth</dt>
               <dd className="mt-1 text-base font-medium text-[var(--app-heading)]">
                 {details.birthDate}
               </dd>
             </div>
           </dl>
+        </Panel>
 
+        <Panel className="profile-card rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm">
+          <div className="mb-5 flex items-center gap-3 border-b border-[color:var(--app-border)] pb-4">
+            <span
+              aria-hidden="true"
+              className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color:var(--app-accent-soft)] text-lg font-bold text-[var(--app-accent)]"
+            >
+              ↗
+            </span>
+            <div>
+              <h3 className="font-semibold text-[var(--app-heading)]">
+                Online
+              </h3>
+              <p className="text-sm text-[var(--app-muted)]">
+                External profiles and projects
+              </p>
+            </div>
+          </div>
           <div className="space-y-3">
             {links.map((link) => (
               <ProfileLinkCard
@@ -117,8 +178,8 @@ export function ProfileSection({
               />
             ))}
           </div>
-        </div>
-      </Panel>
+        </Panel>
+      </div>
     </section>
   );
 }

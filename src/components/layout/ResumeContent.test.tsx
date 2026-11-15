@@ -1,7 +1,81 @@
-import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ResumeContent } from "./ResumeContent";
 import type { ResumeProfile } from "../../resume-data";
+
+class TestIntersectionObserver implements IntersectionObserver {
+  static instances: TestIntersectionObserver[] = [];
+
+  readonly root = null;
+  readonly rootMargin: string;
+  readonly scrollMargin = "0px";
+  readonly thresholds: readonly number[];
+  readonly observedTargets: Element[] = [];
+  readonly callback: IntersectionObserverCallback;
+
+  constructor(
+    callback: IntersectionObserverCallback,
+    options?: IntersectionObserverInit,
+  ) {
+    this.callback = callback;
+    this.rootMargin = options?.rootMargin ?? "0px";
+    this.thresholds = Array.isArray(options?.threshold)
+      ? options.threshold
+      : [options?.threshold ?? 0];
+    TestIntersectionObserver.instances.push(this);
+  }
+
+  observe(target: Element): void {
+    this.observedTargets.push(target);
+  }
+
+  unobserve(target: Element): void {
+    const index = this.observedTargets.indexOf(target);
+    if (index >= 0) {
+      this.observedTargets.splice(index, 1);
+    }
+  }
+
+  disconnect(): void {}
+
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+
+  intersect(target: Element): void {
+    const entry = {
+      target,
+      isIntersecting: true,
+      intersectionRatio: 1,
+      boundingClientRect: {} as DOMRectReadOnly,
+      intersectionRect: {} as DOMRectReadOnly,
+      rootBounds: null,
+      time: 0,
+    } satisfies IntersectionObserverEntry;
+    this.callback([entry], this);
+  }
+}
+
+function installIntersectionObserverMock(): void {
+  TestIntersectionObserver.instances = [];
+  vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
+}
+
+function observerFor(target: Element): TestIntersectionObserver {
+  const observer = TestIntersectionObserver.instances.find((instance) =>
+    instance.observedTargets.includes(target),
+  );
+  if (!observer) {
+    throw new Error("No intersection observer is watching the section");
+  }
+  return observer;
+}
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
+});
 
 const customProfile: ResumeProfile = {
   name: "Custom Developer",
@@ -119,6 +193,110 @@ describe("ResumeContent component", () => {
     expect(handleSelectImage).toHaveBeenCalledWith({
       src: "https://tech.edu/logo.png",
       alt: "Tech University logo",
+      surface: "light",
     });
+  });
+
+  it("renders all sections when IntersectionObserver is unavailable", () => {
+    vi.stubGlobal("IntersectionObserver", undefined);
+
+    const { container } = render(
+      <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
+    );
+
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+    expect(container.textContent).toContain("Custom summary bullet point 1");
+    expect(container.textContent).toContain("Lead Engineer");
+    expect(container.textContent).toContain("M.Sc. Computer Science");
+    expect(container.textContent).toContain("Distributed Systems");
+    expect(container.querySelectorAll("[data-resume-section]")).toHaveLength(6);
+  });
+
+  // eslint-disable-next-line max-statements
+  it("uses anchored placeholders until deferred sections intersect", () => {
+    installIntersectionObserverMock();
+
+    const { container } = render(
+      <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
+    );
+
+    const summaryPlaceholder = container.querySelector(
+      '[data-deferred-section="summary"]',
+    );
+    const experiencePlaceholder = container.querySelector(
+      '[data-deferred-section="experience"]',
+    );
+    const profileGroupPlaceholder = container.querySelector(
+      '[data-deferred-section="education"]',
+    );
+
+    expect(container.querySelector("#summary")?.getAttribute("aria-busy")).toBe(
+      "true",
+    );
+    expect(container.querySelector("#education")).not.toBeNull();
+    expect(container.querySelector("#skills")).not.toBeNull();
+    expect(container.querySelector("#profile")).not.toBeNull();
+    expect(container.textContent).not.toContain("Lead Engineer");
+
+    if (
+      !summaryPlaceholder ||
+      !experiencePlaceholder ||
+      !profileGroupPlaceholder
+    ) {
+      throw new Error("Expected deferred section wrappers");
+    }
+
+    act(() => {
+      observerFor(summaryPlaceholder).intersect(summaryPlaceholder);
+    });
+
+    expect(container.textContent).toContain("Custom summary bullet point 1");
+    expect(container.querySelector("#summary")?.getAttribute("aria-busy")).toBe(
+      null,
+    );
+  });
+
+  it("renders a direct fragment target immediately", () => {
+    installIntersectionObserverMock();
+    window.history.replaceState(null, "", "/#skills");
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+
+    const { container } = render(
+      <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
+    );
+
+    expect(
+      container.querySelector("#skills")?.hasAttribute("data-resume-section"),
+    ).toBe(true);
+    expect(container.textContent).toContain("Distributed Systems");
+    expect(scrollIntoView).toHaveBeenCalledOnce();
+    expect(container.querySelector("#summary")?.getAttribute("aria-busy")).toBe(
+      "true",
+    );
+    Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+  });
+
+  it("synchronously renders every section before printing", () => {
+    installIntersectionObserverMock();
+
+    const { container } = render(
+      <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
+    );
+
+    expect(container.textContent).not.toContain("Lead Engineer");
+
+    act(() => {
+      window.dispatchEvent(new Event("beforeprint"));
+    });
+
+    expect(container.textContent).toContain("Custom summary bullet point 1");
+    expect(container.textContent).toContain("Lead Engineer");
+    expect(container.textContent).toContain("M.Sc. Computer Science");
+    expect(container.textContent).toContain("Distributed Systems");
+    expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(0);
   });
 });

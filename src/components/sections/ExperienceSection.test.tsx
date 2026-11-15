@@ -135,6 +135,7 @@ describe("ExperienceSection", () => {
       expect(onSelectImage).toHaveBeenCalledWith({
         src: firstExp.companyLogo.src,
         alt: `${firstExp.company} logo`,
+        surface: firstExp.companyLogo.surface,
       });
     });
 
@@ -158,6 +159,7 @@ describe("ExperienceSection", () => {
       expect(onSelectImage).toHaveBeenCalledWith({
         src: firstExp.client.logo.src,
         alt: `${firstExp.client.name} logo`,
+        surface: firstExp.client.logo.surface,
       });
     });
   });
@@ -179,6 +181,7 @@ describe("ExperienceSection", () => {
       expect(onSelectImage).toHaveBeenCalledWith({
         src: "https://resume-images.ohm-mho.space/technology-icons/react.svg",
         alt: "React icon",
+        surface: "light",
       });
     });
 

@@ -1,5 +1,5 @@
 import { unwrapApiResponse } from "../types/api-response";
-import type { ResumeProfile } from "../resume-data";
+import { PUBLIC_PHONE_LABEL, type ResumeProfile } from "../resume-data";
 import {
   isResumeDetails,
   isResumeEducation,
@@ -15,6 +15,13 @@ export const DEFAULT_RESUME_API_RETRY_DELAY_MULTIPLIER = 2;
 export const DEFAULT_RESUME_API_RETRY_JITTER_MS = 0;
 export const RESUME_API_HEADER_NAME = "X-Api-Type";
 export const RESUME_API_HEADER_VALUE = "resume-data";
+
+export function getConfiguredResumeApiBaseUrl(): string {
+  return (
+    import.meta.env.VITE_RESUME_API_BASE_URL?.trim().replace(/\/+$/, "") ??
+    DEFAULT_RESUME_API_BASE_URL
+  );
+}
 
 export const RESUME_API_ENDPOINTS = {
   names: "/api/v1/names",
@@ -202,7 +209,7 @@ function resolveApiConfig(options: ResumeApiOptions): ResolvedApiConfig {
       0,
       options.maxRetries ?? DEFAULT_RESUME_API_RETRY_COUNT,
     ),
-    baseUrl: options.baseUrl ?? DEFAULT_RESUME_API_BASE_URL,
+    baseUrl: options.baseUrl ?? getConfiguredResumeApiBaseUrl(),
     backoff: {
       baseDelayMs: options.retryDelayMs ?? DEFAULT_RESUME_API_RETRY_DELAY_MS,
       multiplier:
@@ -337,7 +344,7 @@ export async function fetchAllResumeData(
     name,
     title,
     summary: [...summary],
-    details,
+    details: { ...details, phoneLabel: PUBLIC_PHONE_LABEL },
     links: [...links],
     skills: [...skills],
     experience: [...experience],

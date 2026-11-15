@@ -12,7 +12,8 @@ export function SummarySection({ summary, items }: SummarySectionProps = {}) {
   return (
     <section
       id="summary"
-      className="scroll-mt-36 py-8 sm:py-12"
+      data-resume-section
+      className="scroll-mt-24 py-12 sm:py-16"
       aria-labelledby="summary-title"
     >
       <div className="section-heading grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] md:items-end">

@@ -79,6 +79,15 @@ describe("App component orchestration", () => {
   });
 
   describe("lifecycle views", () => {
+    it("opts out of fallback data so exhausted API failures stay visible", () => {
+      const useResumeDataSpy = vi.spyOn(resumeDataHook, "useResumeData");
+      mockResumeDataState();
+
+      render(<App />);
+
+      expect(useResumeDataSpy).toHaveBeenCalledWith({ useFallback: false });
+    });
+
     it("renders LoadingView when isLoading is true", () => {
       mockResumeDataState({
         profile: undefined,
@@ -147,7 +156,7 @@ describe("App component orchestration", () => {
       const { container } = render(<App />);
 
       const themeButton = Array.from(container.querySelectorAll("button")).find(
-        (btn) => btn.getAttribute("aria-label")?.includes("Theme toggle"),
+        (btn) => btn.getAttribute("aria-label")?.includes("Switch to"),
       );
       expect(themeButton).toBeDefined();
 
@@ -231,6 +240,26 @@ describe("App component orchestration", () => {
 
       expect(container.textContent).toContain("Confirm download");
     });
+
+    it("announces a failed PDF download", () => {
+      mockResumeDataState();
+      vi.spyOn(downloadHook, "useResumeDownload").mockReturnValue({
+        downloadAvailable: false,
+        downloadPending: false,
+        downloadProgress: null,
+        downloadError: new Error("network error"),
+        confirmDownloadOpen: false,
+        setConfirmDownloadOpen: vi.fn(),
+        downloadControlLabel: "Download résumé as PDF",
+        downloadControlText: "Download PDF (unavailable)",
+        startResumeDownload: vi.fn(),
+        handleDownloadRequest: vi.fn(),
+      });
+      const { container } = render(<App />);
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        "PDF download failed",
+      );
+    });
   });
 
   describe("header and footer identity states", () => {
@@ -242,9 +271,10 @@ describe("App component orchestration", () => {
       });
 
       const { container } = render(<App />);
-      const headerHeading = container.querySelector("header h1");
-      expect(headerHeading?.textContent).toBe("");
+      const headerIdentity = container.querySelector(".header-identity-name");
+      expect(headerIdentity?.textContent).toBe("");
       expect(container.textContent).not.toContain("Nawaphon Isarathanachaikul");
+      expect(container.querySelector("footer")).toBeNull();
     });
 
     it("does not show static name or identity in header/footer when in error state", () => {
@@ -255,9 +285,12 @@ describe("App component orchestration", () => {
       });
 
       const { container } = render(<App />);
-      const errorHeaderHeading = container.querySelector("header h1");
-      expect(errorHeaderHeading?.textContent).toBe("");
+      const errorHeaderIdentity = container.querySelector(
+        ".header-identity-name",
+      );
+      expect(errorHeaderIdentity?.textContent).toBe("");
       expect(container.textContent).not.toContain("Nawaphon Isarathanachaikul");
+      expect(container.querySelector("footer")).toBeNull();
     });
   });
 });

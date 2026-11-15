@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TechnologyIconMetadata } from "../../data/technology-icons";
+import { enhanceTechnologyIcon } from "../../services/technology-icon-contrast";
 
 export interface TechnologyIconProps {
   icon?: TechnologyIconMetadata | null;
@@ -27,6 +28,54 @@ export function CodeFallbackIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function useEnhancedIcon(icon: TechnologyIconMetadata | null | undefined) {
+  const [enhanced, setEnhanced] = useState<{
+    key: string;
+    src: string;
+  } | null>(null);
+  const src = icon?.src;
+  const width = icon?.width;
+  const height = icon?.height;
+  const key = JSON.stringify([src, width, height]);
+
+  useEffect(() => {
+    if (!src || !width || !height) {
+      return;
+    }
+    let active = true;
+    void enhanceTechnologyIcon(src, width, height)
+      .then((result) => {
+        if (active && result !== src) {
+          setEnhanced({ key, src: result });
+        }
+      })
+      .catch(() => {
+        // The original image remains usable if enhancement fails.
+      });
+    return () => {
+      active = false;
+    };
+  }, [src, width, height, key]);
+
+  return { enhanced, key };
+}
+
+function chooseIconSource({
+  original,
+  key,
+  enhanced,
+  failed,
+}: {
+  original: string;
+  key: string;
+  enhanced: { key: string; src: string } | null;
+  failed: string | null;
+}): string {
+  return enhanced?.key === key && failed !== enhanced.src
+    ? enhanced.src
+    : original;
+}
+
 export function TechnologyIcon({
   icon,
   label,
@@ -34,9 +83,11 @@ export function TechnologyIcon({
   onError,
 }: TechnologyIconProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
-  const isCurrentFailed = icon ? failedSrc === icon.src : false;
-
-  if (!icon || isCurrentFailed) {
+  const [failedEnhancement, setFailedEnhancement] = useState<string | null>(
+    null,
+  );
+  const { enhanced, key } = useEnhancedIcon(icon);
+  if (!icon || failedSrc === icon.src) {
     return (
       <span
         className={`technology-icon-container inline-grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-[0.3rem] ${className}`}
@@ -48,6 +99,12 @@ export function TechnologyIcon({
   }
 
   const surfaceClass = icon.surface === "dark" ? "bg-[#071a2e]" : "bg-white";
+  const displayedSrc = chooseIconSource({
+    original: icon.src,
+    key,
+    enhanced,
+    failed: failedEnhancement,
+  });
 
   return (
     <span
@@ -55,15 +112,19 @@ export function TechnologyIcon({
       aria-hidden="true"
     >
       <img
-        src={icon.src}
+        src={displayedSrc}
         alt=""
         width={icon.width}
         height={icon.height}
         loading="lazy"
         className="technology-brand-icon block h-full w-full object-contain"
         onError={() => {
-          setFailedSrc(icon.src);
-          onError?.();
+          if (displayedSrc !== icon.src) {
+            setFailedEnhancement(displayedSrc);
+          } else {
+            setFailedSrc(icon.src);
+            onError?.();
+          }
         }}
         data-label={label}
       />

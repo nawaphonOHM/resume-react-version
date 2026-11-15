@@ -3,26 +3,28 @@ import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
 import { resolveTechnologyIcon } from "../../data/technology-icons";
 import { resumeData, type ResumeExperience } from "../../resume-data";
 import { TechnologyIcon } from "../common/TechnologyIcon";
+import type { ZoomImage } from "../dialogs/ImageZoomDialog";
 
 export interface ExperienceSectionProps {
   experience?: readonly ResumeExperience[] | ResumeExperience[];
   items?: readonly ResumeExperience[] | ResumeExperience[];
-  onSelectImage: (image: { src: string; alt: string }) => void;
+  onSelectImage: (image: ZoomImage) => void;
 }
 
 interface ExperienceCardProps {
   item: ResumeExperience;
-  onSelectImage: (image: { src: string; alt: string }) => void;
+  onSelectImage: (image: ZoomImage) => void;
 }
 
 interface TechnologyChipProps {
   technology: string;
-  onSelectImage: (image: { src: string; alt: string }) => void;
+  onSelectImage: (image: ZoomImage) => void;
 }
 
 function TechnologyChip({ technology, onSelectImage }: TechnologyChipProps) {
   const icon = resolveTechnologyIcon(technology);
-  const [hasImageError, setHasImageError] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const hasImageError = Boolean(icon && failedSrc === icon.src);
 
   const canZoom = Boolean(icon && !hasImageError);
 
@@ -35,6 +37,7 @@ function TechnologyChip({ technology, onSelectImage }: TechnologyChipProps) {
           onSelectImage({
             src: icon.src,
             alt: `${technology} icon`,
+            surface: icon.surface,
           });
         }}
         className="technology-chip inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--app-heading)] transition hover:border-[color:var(--app-accent)] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] cursor-pointer"
@@ -43,7 +46,7 @@ function TechnologyChip({ technology, onSelectImage }: TechnologyChipProps) {
           icon={icon}
           label={technology}
           onError={() => {
-            setHasImageError(true);
+            setFailedSrc(icon.src);
           }}
         />
         <span className="technology-label min-w-0 truncate">{technology}</span>
@@ -57,7 +60,7 @@ function TechnologyChip({ technology, onSelectImage }: TechnologyChipProps) {
         icon={icon && !hasImageError ? icon : null}
         label={technology}
         onError={() => {
-          setHasImageError(true);
+          setFailedSrc(icon?.src ?? null);
         }}
       />
       <span className="technology-label min-w-0 truncate">{technology}</span>
@@ -102,6 +105,7 @@ function ExperienceCard({ item, onSelectImage }: ExperienceCardProps) {
                       onSelectImage({
                         src: item.companyLogo.src,
                         alt: `${item.company} logo`,
+                        surface: item.companyLogo.surface,
                       });
                     }}
                     className={`company-logo-frame grid shrink-0 place-items-center overflow-hidden rounded-xl border border-[color:var(--app-border)] p-1.5 transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
@@ -145,6 +149,7 @@ function ExperienceCard({ item, onSelectImage }: ExperienceCardProps) {
                           onSelectImage({
                             src: client.logo.src,
                             alt: `${client.name} logo`,
+                            surface: client.logo.surface,
                           });
                         }}
                         className={`company-logo-frame grid shrink-0 place-items-center overflow-hidden rounded-xl border border-[color:var(--app-border)] p-1.5 transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
@@ -248,7 +253,7 @@ export function ExperienceSection({
   return (
     <section
       id="experience"
-      className="scroll-mt-36"
+      className="scroll-mt-24"
       data-resume-section
       aria-labelledby="experience-title"
     >

@@ -7,11 +7,23 @@ import {
 } from "../status";
 
 function formatBangkokDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "full",
-    timeStyle: "short",
-    timeZone: "Asia/Bangkok",
-  }).format(date);
+  const parts: Record<string, string> = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+      timeZone: "Asia/Bangkok",
+    })
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 function getBangkokHour(date: Date): number {

@@ -1,8 +1,14 @@
-import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TechnologyIcon } from "./TechnologyIcon";
+import { enhanceTechnologyIcon } from "../../services/technology-icon-contrast";
 import type { TechnologyIconMetadata } from "../../data/technology-icons";
 
+vi.mock("../../services/technology-icon-contrast", () => ({
+  enhanceTechnologyIcon: vi.fn((src: string) => Promise.resolve(src)),
+}));
+
+// eslint-disable-next-line max-statements
 describe("TechnologyIcon", () => {
   const mockLightIcon: TechnologyIconMetadata = {
     src: "https://resume-images.ohm-mho.space/technology-icons/react.svg",
@@ -17,6 +23,13 @@ describe("TechnologyIcon", () => {
     height: 24,
     surface: "dark",
   };
+
+  beforeEach(() => {
+    vi.mocked(enhanceTechnologyIcon).mockReset();
+    vi.mocked(enhanceTechnologyIcon).mockImplementation((src) =>
+      Promise.resolve(src),
+    );
+  });
 
   it("renders a brand icon image with correct attributes and light surface background", () => {
     const { container } = render(
@@ -107,5 +120,82 @@ describe("TechnologyIcon", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe(
       mockDarkIcon.src,
     );
+  });
+
+  // eslint-disable-next-line max-statements
+  it("keeps the original while processing and restores it if enhancement fails to display", async () => {
+    const onError = vi.fn();
+    let resolveEnhancement: (value: string) => void = () => {};
+    vi.mocked(enhanceTechnologyIcon).mockReturnValue(
+      new Promise((resolve) => {
+        resolveEnhancement = resolve;
+      }),
+    );
+    const { container } = render(
+      <TechnologyIcon icon={mockLightIcon} label="React" onError={onError} />,
+    );
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      mockLightIcon.src,
+    );
+    await act(async () => {
+      resolveEnhancement("data:image/png;base64,enhanced");
+      await Promise.resolve();
+    });
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "data:image/png;base64,enhanced",
+    );
+    fireEvent.error(container.querySelector("img") as HTMLImageElement);
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      mockLightIcon.src,
+    );
+    expect(onError).not.toHaveBeenCalled();
+    fireEvent.error(container.querySelector("img") as HTMLImageElement);
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
+  it("ignores stale enhancement results after the source changes", async () => {
+    let resolveFirst: (value: string) => void = () => {};
+    vi.mocked(enhanceTechnologyIcon)
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce("data:image/png;base64,aws");
+    const { container, rerender, unmount } = render(
+      <TechnologyIcon icon={mockLightIcon} label="React" />,
+    );
+    rerender(<TechnologyIcon icon={mockDarkIcon} label="AWS" />);
+    await waitFor(() => {
+      expect(container.querySelector("img")?.getAttribute("src")).toBe(
+        "data:image/png;base64,aws",
+      );
+    });
+    await act(async () => {
+      resolveFirst("data:image/png;base64,react");
+      await Promise.resolve();
+    });
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "data:image/png;base64,aws",
+    );
+    unmount();
+  });
+
+  it("ignores an enhancement completing after unmount", async () => {
+    let resolveEnhancement: (value: string) => void = () => {};
+    vi.mocked(enhanceTechnologyIcon).mockReturnValue(
+      new Promise((resolve) => {
+        resolveEnhancement = resolve;
+      }),
+    );
+    const { container, unmount } = render(
+      <TechnologyIcon icon={mockLightIcon} label="React" />,
+    );
+    unmount();
+    await act(async () => {
+      resolveEnhancement("data:image/png;base64,late");
+      await Promise.resolve();
+    });
+    expect(container.querySelector("img")).toBeNull();
   });
 });

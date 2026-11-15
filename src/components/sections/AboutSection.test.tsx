@@ -23,6 +23,9 @@ describe("AboutSection presentation and content", () => {
 
     expect(container.textContent).toContain(resumeData.name);
     expect(container.textContent).toContain(resumeData.title);
+    expect(container.textContent).toContain(
+      `${resumeData.title} · ${resumeData.details.location}`,
+    );
     expect(container.textContent).toContain(resumeData.summary[0]);
   });
 
@@ -51,14 +54,14 @@ describe("AboutSection presentation and content", () => {
     );
 
     expect(container.textContent).toContain(
-      "Available in Bangkok business hours",
-    );
-    expect(container.textContent).toContain(
-      "Wednesday, 4 November 2026 at 01:36",
+      "UTC+7 · Wednesday, 4 November 2026 at 01:36",
     );
 
-    const statusDot = container.querySelector(".status-dot");
-    expect(statusDot).not.toBeNull();
+    const statusDot = container.querySelector<HTMLElement>(".status-dot");
+    expect(statusDot?.getAttribute("role")).toBe("img");
+    expect(statusDot?.getAttribute("aria-label")).toBe(
+      "Available in Bangkok business hours",
+    );
   });
 
   it("renders quick action links for email and experience anchor", () => {

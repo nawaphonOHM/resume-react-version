@@ -219,8 +219,11 @@ describe("buildAggregatedProfile", () => {
 });
 
 describe("resolveFallbackProfile", () => {
-  it("defaults to defaultResumeData when no options are provided", () => {
-    expect(resolveFallbackProfile({})).toBe(defaultResumeData);
+  it("does not use fallback data unless explicitly enabled", () => {
+    expect(resolveFallbackProfile({})).toBeUndefined();
+    expect(resolveFallbackProfile({ useFallback: true })).toBe(
+      defaultResumeData,
+    );
   });
 
   it("returns custom fallbackData when provided", () => {
@@ -240,6 +243,23 @@ describe("resolveFallbackProfile", () => {
 
   it("returns undefined when useFallback is explicitly false", () => {
     expect(resolveFallbackProfile({ useFallback: false })).toBeUndefined();
+  });
+});
+
+describe("buildAggregatedProfile privacy", () => {
+  it("keeps phone output at Available on request when the API provides a number", () => {
+    const profile = buildAggregatedProfile([
+      "Nawaphon",
+      "Software Engineer",
+      ["Summary"],
+      { ...defaultResumeData.details, phoneLabel: "+66 81 234 5678" },
+      [],
+      [],
+      [mockExperience],
+      mockEducation,
+    ]);
+
+    expect(profile?.details.phoneLabel).toBe("Available on request");
   });
 });
 

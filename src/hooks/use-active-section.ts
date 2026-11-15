@@ -9,12 +9,14 @@ const OBSERVER_OPTIONS: IntersectionObserverInit = {
 function findBestSection(
   entries: IntersectionObserverEntry[],
   ratios: Map<ResumeSectionId, number>,
+  observedElements: Map<ResumeSectionId, HTMLElement>,
 ): ResumeSectionId | null {
   for (const entry of entries) {
-    ratios.set(
-      entry.target.id as ResumeSectionId,
-      entry.isIntersecting ? entry.intersectionRatio : 0,
-    );
+    const sectionId = entry.target.id as ResumeSectionId;
+    if (observedElements.get(sectionId) !== entry.target) {
+      continue;
+    }
+    ratios.set(sectionId, entry.isIntersecting ? entry.intersectionRatio : 0);
   }
 
   const nextSection = resumeSections.reduce<{
@@ -34,35 +36,97 @@ function findBestSection(
 function getSectionElements(): HTMLElement[] {
   return resumeSections
     .map((section) => document.getElementById(section.id))
-    .filter((element): element is HTMLElement => Boolean(element));
+    .filter((element): element is HTMLElement =>
+      Boolean(element?.hasAttribute("data-resume-section")),
+    );
+}
+
+function getSectionFromHash(): ResumeSectionId | null {
+  const sectionId = window.location.hash.slice(1);
+  return resumeSections.find((section) => section.id === sectionId)?.id ?? null;
+}
+
+function syncObservedSections(
+  observer: IntersectionObserver,
+  ratios: Map<ResumeSectionId, number>,
+  observedElements: Map<ResumeSectionId, HTMLElement>,
+): void {
+  const currentElements = new Map(
+    getSectionElements().map((element) => [
+      element.id as ResumeSectionId,
+      element,
+    ]),
+  );
+
+  for (const [sectionId, element] of observedElements) {
+    if (currentElements.get(sectionId) !== element) {
+      observer.unobserve(element);
+      observedElements.delete(sectionId);
+      ratios.delete(sectionId);
+    }
+  }
+
+  for (const [sectionId, element] of currentElements) {
+    if (observedElements.get(sectionId) !== element) {
+      observedElements.set(sectionId, element);
+      observer.observe(element);
+    }
+  }
+}
+
+function observeSections(setActiveSection: (id: ResumeSectionId) => void) {
+  const ratios = new Map<ResumeSectionId, number>();
+  const observedElements = new Map<ResumeSectionId, HTMLElement>();
+  const observer = new IntersectionObserver((entries) => {
+    const bestSection = findBestSection(entries, ratios, observedElements);
+    if (bestSection) {
+      setActiveSection(bestSection);
+    }
+  }, OBSERVER_OPTIONS);
+  const syncSections = () => {
+    syncObservedSections(observer, ratios, observedElements);
+  };
+  syncSections();
+  const mutationObserver =
+    typeof MutationObserver === "undefined"
+      ? null
+      : new MutationObserver(syncSections);
+  mutationObserver?.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+  return () => {
+    observer.disconnect();
+    mutationObserver?.disconnect();
+  };
 }
 
 export function useActiveSection(initialSection: ResumeSectionId = "about") {
-  const [activeSection, setActiveSection] =
-    useState<ResumeSectionId>(initialSection);
+  const [activeSection, setActiveSection] = useState<ResumeSectionId>(() =>
+    typeof window === "undefined"
+      ? initialSection
+      : (getSectionFromHash() ?? initialSection),
+  );
 
   useEffect(() => {
+    const handleHashChange = () => {
+      setActiveSection(getSectionFromHash() ?? initialSection);
+    };
+    window.addEventListener("hashchange", handleHashChange);
+
     if (typeof IntersectionObserver === "undefined") {
-      return;
+      return () => {
+        window.removeEventListener("hashchange", handleHashChange);
+      };
     }
 
-    const ratios = new Map<ResumeSectionId, number>();
-    const observer = new IntersectionObserver((entries) => {
-      const bestSection = findBestSection(entries, ratios);
-      if (bestSection) {
-        setActiveSection(bestSection);
-      }
-    }, OBSERVER_OPTIONS);
-
-    const sectionElements = getSectionElements();
-    sectionElements.forEach((element) => {
-      observer.observe(element);
-    });
+    const stopObserving = observeSections(setActiveSection);
 
     return () => {
-      observer.disconnect();
+      stopObserving();
+      window.removeEventListener("hashchange", handleHashChange);
     };
-  }, []);
+  }, [initialSection]);
 
   return { activeSection, setActiveSection };
 }

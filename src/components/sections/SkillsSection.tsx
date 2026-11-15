@@ -11,26 +11,43 @@ export function SkillsSection({
   const skills = propsSkills ?? resumeData.skills;
 
   return (
-    <section id="skills" className="scroll-mt-36">
-      <div className="mb-4">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--app-accent)]">
-          Technical toolkit
-        </p>
-        <h2 className="mt-2 text-3xl font-semibold text-[var(--app-heading)]">
-          Skills
-        </h2>
-      </div>
-
-      <Panel className="rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm">
-        <div className="flex flex-wrap gap-3">
-          {skills.map((skill) => (
-            <span
-              key={skill}
-              className="rounded-2xl border border-[color:var(--app-border)] bg-[var(--app-surface-raised)] px-4 py-2 text-sm font-medium text-[var(--app-heading)]"
+    <section
+      id="skills"
+      data-resume-section
+      aria-labelledby="skills-title"
+      className="scroll-mt-24"
+    >
+      <Panel className="skills-panel overflow-hidden rounded-3xl border-0 bg-[#0b2847] p-0 text-white shadow-lg">
+        <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-200 sm:text-sm">
+              Technical toolkit
+            </p>
+            <h2
+              id="skills-title"
+              className="mt-2 text-3xl font-bold tracking-tight text-white"
             >
-              {skill}
-            </span>
-          ))}
+              Core skills
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-200">
+              {skills.length}{" "}
+              {skills.length === 1 ? "technology" : "technologies"} highlighted
+              in the résumé.
+            </p>
+          </div>
+          <ul
+            aria-label="Core technical skills"
+            className="m-0 flex list-none flex-wrap gap-2 p-0"
+          >
+            {skills.map((skill) => (
+              <li
+                key={skill}
+                className="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium text-white"
+              >
+                {skill}
+              </li>
+            ))}
+          </ul>
         </div>
       </Panel>
     </section>
