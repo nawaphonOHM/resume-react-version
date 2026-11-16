@@ -18,6 +18,27 @@ npm run dev
 
 Open `http://localhost:5173/`. The development server reloads when source files change.
 
+## Résumé data API
+
+The résumé is loaded from eight API resources: `/api/v1/names`, `/api/v1/titles`, `/api/v1/summaries`, `/api/v1/details`, `/api/v1/links`, `/api/v1/skills`, `/api/v1/experiences`, and `/api/v1/educations`. Requests are made concurrently with the `X-Api-Type: resume-data` header, validated, and retried for transient failures.
+
+By default, the API must be available on the same origin as the app. Configure the web server or reverse proxy to forward those existing `/api/v1/...` routes to the résumé API; this repository does not include or create a backend. The app shows a retryable error state when the API cannot provide a complete profile.
+
+To use an API hosted under a different origin or path prefix, set `VITE_RESUME_API_BASE_URL` before starting Vite or building the app. The configured value is prepended to the existing `/api/v1/...` routes, for example:
+
+```bash
+VITE_RESUME_API_BASE_URL=https://api.example.com npm run dev
+VITE_RESUME_API_BASE_URL=https://api.example.com npm run build
+```
+
+For a cross-origin API, configure its CORS policy to allow the app origin and the `X-Api-Type` request header. Vite variables are embedded at build time, so production deployments must set the value when running `npm run build`.
+
+## Images and icon enhancement
+
+Logos, technology icons, favicons, and the hosted PDF are loaded from remote asset URLs. Technology icons are enhanced in the browser using a shared, lazy-loaded OpenCV.js module from `https://cdn.jsdelivr.net/npm/@techstark/opencv-js/+esm`. The asset host must allow cross-origin canvas access for enhancement; content security policies must allow the CDN module and its WebAssembly runtime, remote images, and `data:` image URLs. If OpenCV, an image, or canvas access is unavailable, the original icon remains visible; a broken original uses a code-icon fallback.
+
+PDF availability checks and downloads use cross-origin `HEAD` and `GET` requests. The PDF host must allow the deployed app's origin through CORS; otherwise the check may report unavailable and the download may fail even when the file exists. Printing is available independently.
+
 ## Architecture & Component Graph
 
 The project follows a modular React + Vite architecture with a lightweight composition root (`App.tsx`), typed canonical résumé data, domain custom hooks, decomposed layout and section components, remote asset integration, and a hosted PDF download flow.
@@ -177,7 +198,7 @@ The production command compiles the React application and emits a static Vite bu
 dist/
 ```
 
-The output is host-neutral and requires no backend, runtime API, or server-side rendering.
+The output is host-neutral and requires no server-side rendering, but the deployed app must be able to reach the résumé API routes described above.
 
 ## Useful scripts
 

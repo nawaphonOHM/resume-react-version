@@ -7,10 +7,14 @@ export interface ErrorViewProps {
 
 export function ErrorView({
   onRetry,
-  message = "Failed to load resume data. Please check your connection and try again.",
+  message = "An error occurred while loading the resume data. Please try again.",
 }: ErrorViewProps) {
   return (
-    <main className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-16 text-center">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-16 text-center"
+    >
       <div
         role="alert"
         aria-live="assertive"
@@ -33,7 +37,7 @@ export function ErrorView({
           </svg>
         </div>
         <h2 className="text-xl font-bold text-[var(--app-heading)]">
-          Failed to load resume data
+          Unable to load resume
         </h2>
         <p className="mt-2 text-sm text-[var(--app-muted)]">{message}</p>
         <div className="mt-6 flex justify-center">

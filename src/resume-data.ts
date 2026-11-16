@@ -57,6 +57,8 @@ export interface ResumeDetails {
   birthDate: string;
 }
 
+export const PUBLIC_PHONE_LABEL = "Available on request";
+
 export interface ResumeProfile {
   name: string;
   title: string;
@@ -88,7 +90,7 @@ export const resumeData: ResumeProfile = {
   ],
   details: {
     location: "Bangkok, Thailand",
-    phoneLabel: "Available on request",
+    phoneLabel: PUBLIC_PHONE_LABEL,
     email: "nawaphon2539@gmail.com",
     nationality: "Thai",
     birthDate: "9 September 1996",

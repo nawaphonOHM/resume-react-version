@@ -11,6 +11,7 @@ import {
   type ResumeApiOptions,
 } from "../services/resume-api";
 import {
+  PUBLIC_PHONE_LABEL,
   resumeData as defaultResumeData,
   type ResumeDetails,
   type ResumeEducation,
@@ -178,7 +179,7 @@ export function buildAggregatedProfile(
     name,
     title,
     summary: [...summary],
-    details,
+    details: { ...details, phoneLabel: PUBLIC_PHONE_LABEL },
     links: [...links],
     skills: [...skills],
     experience: [...experience],
@@ -195,7 +196,7 @@ export function resolveFallbackProfile(
   if (options.fallbackData !== undefined) {
     return options.fallbackData;
   }
-  return defaultResumeData;
+  return options.useFallback === true ? defaultResumeData : undefined;
 }
 
 export async function fetchAllResources(

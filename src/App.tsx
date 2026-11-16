@@ -70,7 +70,9 @@ function App() {
   const clock = useBangkokClock();
   const download = useResumeDownload();
   const [zoomImage, setZoomImage] = useState<ZoomImage | null>(null);
-  const { profile, isLoading, hasError, progress, reloadAll } = useResumeData();
+  const { profile, isLoading, hasError, progress, reloadAll } = useResumeData({
+    useFallback: false,
+  });
   const identity = resolveProfileIdentity(profile);
 
   return (
@@ -89,6 +91,15 @@ function App() {
         }}
       />
 
+      {Boolean(download.downloadError) && (
+        <p
+          role="alert"
+          className="mx-auto max-w-7xl px-6 py-3 text-sm text-[var(--app-text)]"
+        >
+          The PDF download failed. Check your connection or try again later.
+        </p>
+      )}
+
       {renderMainContent({
         isLoading,
         isErrorVisible: hasError && !profile,
@@ -104,11 +115,13 @@ function App() {
         },
       })}
 
-      <Footer
-        name={identity.name}
-        title={identity.title}
-        location={identity.location}
-      />
+      {profile && (
+        <Footer
+          name={identity.name}
+          title={identity.title}
+          location={identity.location}
+        />
+      )}
 
       <DownloadConfirmDialog
         isOpen={download.confirmDownloadOpen}

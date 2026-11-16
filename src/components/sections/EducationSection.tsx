@@ -1,10 +1,11 @@
 import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
 import { resumeData, type ResumeEducation } from "../../resume-data";
 import { LogoButton } from "../common/LogoButton";
+import type { ZoomImage } from "../dialogs/ImageZoomDialog";
 
 export interface EducationSectionProps {
   education?: ResumeEducation;
-  onSelectImage: (image: { src: string; alt: string }) => void;
+  onSelectImage: (image: ZoomImage) => void;
 }
 
 export function EducationSection({
@@ -15,12 +16,20 @@ export function EducationSection({
   const institutionLogoAlt = `${education.institution} logo`;
 
   return (
-    <section id="education" className="scroll-mt-36">
+    <section
+      id="education"
+      data-resume-section
+      aria-labelledby="education-title"
+      className="scroll-mt-24"
+    >
       <div className="mb-4">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--app-accent)]">
           Academic background
         </p>
-        <h2 className="mt-2 text-3xl font-semibold text-[var(--app-heading)]">
+        <h2
+          id="education-title"
+          className="mt-2 text-3xl font-semibold text-[var(--app-heading)]"
+        >
           Education
         </h2>
       </div>
@@ -69,6 +78,7 @@ export function EducationSection({
               onSelectImage({
                 src: education.institutionLogo.src,
                 alt: institutionLogoAlt,
+                surface: education.institutionLogo.surface,
               });
             }}
           />

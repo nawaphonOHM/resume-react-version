@@ -1,3 +1,5 @@
+import { useLayoutEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import type { ZoomImage } from "../dialogs/ImageZoomDialog";
 import { AboutSection, type AboutSectionProps } from "../sections/AboutSection";
 import { EducationSection } from "../sections/EducationSection";
@@ -5,13 +7,17 @@ import { ExperienceSection } from "../sections/ExperienceSection";
 import { ProfileSection } from "../sections/ProfileSection";
 import { SkillsSection } from "../sections/SkillsSection";
 import { SummarySection } from "../sections/SummarySection";
+import { DeferredSection } from "./DeferredSection";
 import type {
   ResumeDetails,
   ResumeEducation,
   ResumeExperience,
   ResumeLink,
   ResumeProfile,
+  ResumeSectionId,
 } from "../../resume-data";
+
+const LOWER_SECTION_ANCHORS: readonly ResumeSectionId[] = ["skills", "profile"];
 
 export interface ResumeContentProps extends AboutSectionProps {
   profile?: ResumeProfile;
@@ -73,36 +79,75 @@ export function ResumeContent({
   onSelectImage,
   ...props
 }: ResumeContentProps) {
+  const [renderAllSections, setRenderAllSections] = useState(false);
   const upper = resolveUpperSections({ profile, onSelectImage, ...props });
   const lower = resolveLowerSections({ profile, onSelectImage, ...props });
 
+  useLayoutEffect(() => {
+    const renderAllBeforePrint = () => {
+      // The browser snapshots the DOM as soon as beforeprint returns.
+      // eslint-disable-next-line @eslint-react/dom-no-flush-sync
+      flushSync(() => {
+        setRenderAllSections(true);
+      });
+    };
+
+    window.addEventListener("beforeprint", renderAllBeforePrint);
+    return () => {
+      window.removeEventListener("beforeprint", renderAllBeforePrint);
+    };
+  }, []);
+
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
+    <main
+      id="main-content"
+      tabIndex={-1}
+      className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8"
+    >
       <AboutSection profile={profile} {...props} />
 
-      <SummarySection summary={upper.summary} />
+      <DeferredSection
+        sectionId="summary"
+        title="Professional summary"
+        renderAll={renderAllSections}
+      >
+        <SummarySection summary={upper.summary} />
+      </DeferredSection>
 
-      <ExperienceSection
-        experience={upper.experience}
-        onSelectImage={onSelectImage}
-      />
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-        <EducationSection
-          education={lower.education}
+      <DeferredSection
+        sectionId="experience"
+        title="Experience timeline"
+        renderAll={renderAllSections}
+      >
+        <ExperienceSection
+          experience={upper.experience}
           onSelectImage={onSelectImage}
         />
+      </DeferredSection>
 
-        <div className="space-y-6">
-          <SkillsSection skills={lower.skills} />
-
-          <ProfileSection
-            details={lower.details}
-            links={lower.links}
+      <DeferredSection
+        sectionId="education"
+        anchorIds={LOWER_SECTION_ANCHORS}
+        title="Education, skills, and profile"
+        renderAll={renderAllSections}
+      >
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
+          <EducationSection
+            education={lower.education}
             onSelectImage={onSelectImage}
           />
+
+          <aside aria-label="Skills and public profile" className="space-y-6">
+            <SkillsSection skills={lower.skills} />
+
+            <ProfileSection
+              details={lower.details}
+              links={lower.links}
+              onSelectImage={onSelectImage}
+            />
+          </aside>
         </div>
-      </div>
+      </DeferredSection>
     </main>
   );
 }

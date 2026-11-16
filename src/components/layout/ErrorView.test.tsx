@@ -7,9 +7,9 @@ describe("ErrorView component", () => {
     const { container } = render(<ErrorView onRetry={vi.fn()} />);
 
     expect(container.querySelector('[role="alert"]')).not.toBeNull();
-    expect(container.textContent).toContain("Failed to load resume data");
+    expect(container.textContent).toContain("Unable to load resume");
     expect(container.textContent).toContain(
-      "Failed to load resume data. Please check your connection and try again.",
+      "An error occurred while loading the resume data. Please try again.",
     );
   });
 

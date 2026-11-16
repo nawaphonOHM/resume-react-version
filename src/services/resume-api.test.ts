@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_RESUME_API_BASE_URL,
   DEFAULT_RESUME_API_RETRY_COUNT,
@@ -21,8 +21,13 @@ import {
   fetchResumeSummaries,
   fetchResumeTitles,
   fetchResumeApi,
+  getConfiguredResumeApiBaseUrl,
   isTransientError,
 } from "./resume-api";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("resume-api configuration & helpers", () => {
   it("provides expected defaults for all retry configuration constants", () => {
@@ -33,6 +38,11 @@ describe("resume-api configuration & helpers", () => {
     expect(DEFAULT_RESUME_API_RETRY_JITTER_MS).toBe(0);
     expect(RESUME_API_HEADER_NAME).toBe("X-Api-Type");
     expect(RESUME_API_HEADER_VALUE).toBe("resume-data");
+  });
+
+  it("defaults to same-origin API routes when no Vite base URL is configured", () => {
+    vi.stubEnv("VITE_RESUME_API_BASE_URL", "");
+    expect(getConfiguredResumeApiBaseUrl()).toBe("");
   });
 
   it("defines the 8 pluralized REST endpoints", () => {
@@ -119,6 +129,31 @@ describe("resume-api configuration & helpers", () => {
 
 describe("fetchResumeApi and endpoint methods", () => {
   describe("request execution and retry behavior", () => {
+    it("uses the optional Vite API base URL by default", async () => {
+      vi.stubEnv("VITE_RESUME_API_BASE_URL", "https://api.example.com/");
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        json: () =>
+          Promise.resolve({
+            data: "Nawaphon Isarathanachaikul",
+            success: true,
+            timestamp: "2026-11-04T00:00:00Z",
+          }),
+      });
+
+      await fetchResumeNames({
+        fetchFn: mockFetch as unknown as typeof fetch,
+        maxRetries: 0,
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://api.example.com/api/v1/names",
+        expect.objectContaining({ method: "GET" }),
+      );
+    });
+
     it("includes X-Api-Type header and unwraps ApiResponse envelope", async () => {
       const mockFetch = vi.fn().mockResolvedValue({
         ok: true,

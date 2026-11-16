@@ -6,6 +6,7 @@ describe("LoadingView component", () => {
   it("renders progressbar with correct accessibility attributes", () => {
     const { container } = render(<LoadingView progress={50} />);
 
+    expect(container.querySelector('[role="status"]')).not.toBeNull();
     const progressbar = container.querySelector('[role="progressbar"]');
     expect(progressbar).not.toBeNull();
     expect(progressbar?.getAttribute("aria-valuenow")).toBe("50");

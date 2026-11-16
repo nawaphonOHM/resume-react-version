@@ -135,13 +135,14 @@ describe("useResumeData hook orchestration", () => {
       expect(result.current.isFallback).toBe(false);
     });
 
-    it("falls back to defaultResumeData with isFallback: true when fetch fails by default", async () => {
+    it("falls back to defaultResumeData when explicitly enabled and fetch fails", async () => {
       const mockFetch = createMockFetch({ "/names": "FAIL_500" });
       const { result } = renderHook(() =>
         useResumeData({
           fetchFn: mockFetch as unknown as typeof fetch,
           retryDelayMs: 1,
           maxRetries: 0,
+          useFallback: true,
         }),
       );
 

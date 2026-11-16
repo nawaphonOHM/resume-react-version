@@ -134,29 +134,44 @@ function HeroVisual({ monogram }: HeroVisualProps) {
 }
 
 interface HeroKickerProps {
-  label: string;
+  availabilityLabel: string;
+  title: string;
+  location: string;
   bangkokTime?: string;
 }
 
-function HeroKicker({ label, bangkokTime }: HeroKickerProps) {
+function HeroKicker({
+  availabilityLabel,
+  title,
+  location,
+  bangkokTime,
+}: HeroKickerProps) {
   return (
-    <div className="hero-kicker">
-      <span className="status-dot" aria-hidden="true" />
-      <span className="flex flex-wrap items-center gap-1.5">
-        <span>{label}</span>
-        {bangkokTime && (
-          <>
-            <span aria-hidden="true">•</span>
-            <span
+    <>
+      <p className="hero-kicker">
+        <span
+          className="status-dot"
+          role="img"
+          aria-label={availabilityLabel}
+        />
+        <span className="hero-kicker-copy">
+          {title} <span aria-hidden="true">·</span> {location}
+        </span>
+      </p>
+      {bangkokTime && (
+        <p className="hero-kicker hero-clock-kicker">
+          <span className="hero-kicker-copy">
+            UTC+7 <span aria-hidden="true">·</span>{" "}
+            <time
               className="hero-clock font-medium text-sky-200"
               aria-label="Current time in Bangkok, Thailand (UTC+7)"
             >
               {bangkokTime}
-            </span>
-          </>
-        )}
-      </span>
-    </div>
+            </time>
+          </span>
+        </p>
+      )}
+    </>
   );
 }
 
@@ -186,7 +201,7 @@ function HeroActions({ email, githubLink }: HeroActionsProps) {
           href={githubLink.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="!rounded-xl !border-white/20 !px-5 !py-3 !text-slate-200 hover:!bg-white/10"
+          className="!rounded-xl !border-white/20 !bg-white/10 !px-5 !py-3 !text-white hover:!bg-white/20"
         >
           View GitHub
         </Button>
@@ -213,6 +228,7 @@ export function buildHeroStyles(
 interface ResolvedHeroData {
   name: string;
   title: string;
+  location: string;
   introduction: string;
   email: string;
   githubLink?: ResumeLink;
@@ -243,6 +259,7 @@ function resolveHeroData(props: AboutSectionProps): ResolvedHeroData {
   return {
     name,
     title,
+    location: profile.details.location,
     introduction: intro,
     email,
     githubLink: links.find((link) => link.label === "GitHub"),
@@ -273,13 +290,19 @@ export function AboutSection(props: AboutSectionProps = {}) {
   return (
     <section
       id="about"
+      data-resume-section
       ref={sectionRef}
       className="hero-section scroll-mt-36"
       aria-labelledby="hero-title"
       style={initialStyle}
     >
       <div className="hero-copy z-10 max-w-2xl space-y-4">
-        <HeroKicker label={currentLabel} bangkokTime={bangkokTime} />
+        <HeroKicker
+          availabilityLabel={currentLabel}
+          title={heroData.title}
+          location={heroData.location}
+          bangkokTime={bangkokTime}
+        />
 
         <h1
           id="hero-title"

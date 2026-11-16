@@ -7,7 +7,10 @@ export function LoadingView({ progress }: LoadingViewProps) {
 
   return (
     <main
+      id="main-content"
+      tabIndex={-1}
       className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-16 text-center"
+      role="status"
       aria-live="polite"
       aria-busy="true"
     >
