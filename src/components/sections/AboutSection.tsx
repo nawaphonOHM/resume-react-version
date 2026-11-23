@@ -166,7 +166,9 @@ function HeroKicker({
               className="hero-clock font-medium text-sky-200"
               aria-label="Current time in Bangkok, Thailand (UTC+7)"
             >
-              {bangkokTime}
+              <span key={bangkokTime} className="hero-clock-tick">
+                {bangkokTime}
+              </span>
             </time>
           </span>
         </p>
@@ -292,7 +294,7 @@ export function AboutSection(props: AboutSectionProps = {}) {
       id="about"
       data-resume-section
       ref={sectionRef}
-      className="hero-section scroll-mt-36"
+      className="hero-section scroll-mt-24"
       aria-labelledby="hero-title"
       style={initialStyle}
     >

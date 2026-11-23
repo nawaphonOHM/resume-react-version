@@ -5,7 +5,6 @@ import { resumeSections, type ResumeSectionId } from "../../resume-data";
 
 export interface HeaderProps {
   name?: string;
-  title?: string;
   activeSection: ResumeSectionId;
   theme: Theme;
   onToggleTheme: () => void;
@@ -87,14 +86,36 @@ function ThemeToggle({
       aria-pressed={theme === "dark"}
       onClick={onToggleTheme}
     >
-      {theme === "light" ? "Dark mode" : "Light mode"}
+      {theme === "light" ? (
+        <svg
+          className="h-5 w-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          aria-hidden="true"
+        >
+          <path d="M20.5 15.4A8.5 8.5 0 0 1 8.6 3.5a8.6 8.6 0 1 0 11.9 11.9Z" />
+        </svg>
+      ) : (
+        <svg
+          className="h-5 w-5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" />
+        </svg>
+      )}
     </Button>
   );
 }
 
 export function Header({
   name = "",
-  title = "",
   activeSection,
   theme,
   onToggleTheme,
@@ -124,9 +145,9 @@ export function Header({
 
       <header
         onKeyDown={handleHeaderKeyDown}
-        className="sticky top-0 z-20 border-b border-[color:var(--app-border)] bg-[color:var(--app-surface)]/90 backdrop-blur no-print"
+        className="sticky top-0 z-50 border-b border-[color:var(--app-border)] bg-[color:var(--app-surface)]/90 backdrop-blur no-print"
       >
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[78rem] px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex min-h-11 items-center gap-3 sm:gap-4">
             <a
               href="#about"
@@ -136,16 +157,7 @@ export function Header({
               {getMonogram(name)}
             </a>
 
-            <div className="min-w-0 flex-1">
-              <p className="header-identity-name truncate text-sm font-semibold text-[var(--app-heading)] sm:text-base">
-                {name}
-              </p>
-              <p className="truncate text-xs text-[var(--app-muted)] sm:text-sm">
-                {title}
-              </p>
-            </div>
-
-            <div className="hidden min-w-0 flex-1 overflow-x-auto lg:block">
+            <div className="hidden min-w-0 flex-1 overflow-x-auto md:block">
               <SectionNavigation
                 activeSection={activeSection}
                 ariaLabel="Portfolio sections"
@@ -154,7 +166,7 @@ export function Header({
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              <div className="hidden items-center gap-2 lg:flex">
+              <div className="hidden items-center gap-2 md:flex">
                 <Button
                   primary
                   disabled={downloadPending}
@@ -186,7 +198,7 @@ export function Header({
                 }
                 aria-expanded={mobileMenuOpen}
                 aria-controls="mobile-section-menu"
-                className="inline-flex size-10 items-center justify-center rounded-lg border border-[color:var(--app-border)] bg-[var(--app-surface)] text-lg font-semibold text-[var(--app-heading)] hover:bg-[var(--app-surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-accent)] lg:hidden"
+                className="inline-flex size-10 items-center justify-center rounded-lg border border-[color:var(--app-border)] bg-[var(--app-surface)] text-lg font-semibold text-[var(--app-heading)] hover:bg-[var(--app-surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-accent)] md:hidden"
                 onClick={() => {
                   setMobileMenuOpen((isOpen) => !isOpen);
                 }}
@@ -200,7 +212,7 @@ export function Header({
         {mobileMenuOpen && (
           <div
             id="mobile-section-menu"
-            className="border-t border-[color:var(--app-border)] bg-[var(--app-surface)] lg:hidden"
+            className="border-t border-[color:var(--app-border)] bg-[var(--app-surface)] md:hidden"
           >
             <div className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 lg:px-8">
               <SectionNavigation

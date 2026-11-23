@@ -136,6 +136,10 @@ describe("ExperienceSection", () => {
         src: firstExp.companyLogo.src,
         alt: `${firstExp.company} logo`,
         surface: firstExp.companyLogo.surface,
+        width: firstExp.companyLogo.width,
+        height: firstExp.companyLogo.height,
+        origin: companyLogoBtn.querySelector("img"),
+        activation: "keyboard",
       });
     });
 
@@ -160,6 +164,10 @@ describe("ExperienceSection", () => {
         src: firstExp.client.logo.src,
         alt: `${firstExp.client.name} logo`,
         surface: firstExp.client.logo.surface,
+        width: firstExp.client.logo.width,
+        height: firstExp.client.logo.height,
+        origin: clientLogoBtn.querySelector("img"),
+        activation: "keyboard",
       });
     });
   });
@@ -182,6 +190,10 @@ describe("ExperienceSection", () => {
         src: "https://resume-images.ohm-mho.space/technology-icons/react.svg",
         alt: "React icon",
         surface: "light",
+        width: 24,
+        height: 24,
+        origin: reactChip.querySelector("img"),
+        activation: "keyboard",
       });
     });
 

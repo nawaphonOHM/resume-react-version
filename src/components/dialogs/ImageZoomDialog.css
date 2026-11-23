@@ -1,0 +1,63 @@
+.image-zoom-preview {
+  position: fixed;
+  z-index: 40;
+  box-sizing: border-box;
+  display: grid;
+  width: max-content;
+  height: max-content;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+  place-items: center;
+  padding: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgb(148 163 184 / 45%);
+  border-radius: 0.875rem;
+  pointer-events: none;
+  opacity: 1;
+  box-shadow: 0 1rem 3rem rgb(8 35 62 / 24%);
+  transform: scale(1);
+  transform-origin: center;
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+}
+
+.image-zoom-preview--light {
+  background: #fff;
+}
+
+.image-zoom-preview--dark {
+  background: #071a2e;
+}
+
+.image-zoom-preview__image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: var(--image-zoom-image-max-width, min(20vw, calc(100vw - 3.5rem)));
+  max-height: var(
+    --image-zoom-image-max-height,
+    min(20vh, calc(100vh - 3.5rem))
+  );
+  object-fit: contain;
+  user-select: none;
+}
+
+@starting-style {
+  .image-zoom-preview {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image-zoom-preview {
+    transition: none;
+  }
+}
+
+@media print {
+  .image-zoom-preview {
+    display: none !important;
+  }
+}

@@ -1,10 +1,11 @@
 import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
+import { getImageZoomHandlers } from "../common/image-zoom";
 import {
   resumeData,
   type ResumeDetails,
   type ResumeLink,
 } from "../../resume-data";
-import type { ZoomImage } from "../dialogs/ImageZoomDialog";
+import type { ZoomImage } from "../common/image-zoom";
 
 export interface ProfileSectionProps {
   details?: ResumeDetails;
@@ -36,16 +37,10 @@ function ProfileLinkCard({ link, onSelectImage }: ProfileLinkCardProps) {
       </div>
       {logo ? (
         <button
+          {...getImageZoomHandlers({ ...logo, alt: logoAlt }, onSelectImage)}
           type="button"
           aria-label={`Open enlarged ${logoAlt}`}
           className={`inline-flex rounded-xl border border-[color:var(--app-border)] p-3 ${logo.surface === "dark" ? "bg-[#071a2e]" : "bg-white/90"}`}
-          onClick={() => {
-            onSelectImage({
-              src: logo.src,
-              alt: logoAlt,
-              surface: logo.surface,
-            });
-          }}
         >
           <img
             src={logo.src}
@@ -75,9 +70,9 @@ export function ProfileSection({
       id="profile"
       data-resume-section
       aria-labelledby="profile-title"
-      className="scroll-mt-24"
+      className="scroll-mt-24 py-16 sm:py-20"
     >
-      <div className="section-heading grid gap-3">
+      <div className="section-heading section-heading--split grid gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--app-accent)] sm:text-sm">
             Public details
@@ -95,7 +90,7 @@ export function ProfileSection({
         </p>
       </div>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+      <div className="profile-cards mt-10 grid gap-5 lg:grid-cols-2">
         <Panel className="profile-card rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm">
           <div className="mb-5 flex items-center gap-3 border-b border-[color:var(--app-border)] pb-4">
             <span
@@ -113,7 +108,7 @@ export function ProfileSection({
               </p>
             </div>
           </div>
-          <dl className="grid gap-4 sm:grid-cols-2">
+          <dl className="profile-details">
             <div>
               <dt className="text-sm text-[var(--app-muted)]">Location</dt>
               <dd className="mt-1 text-base font-medium text-[var(--app-heading)]">

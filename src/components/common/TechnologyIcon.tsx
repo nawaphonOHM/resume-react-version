@@ -32,6 +32,7 @@ function useEnhancedIcon(icon: TechnologyIconMetadata | null | undefined) {
   const [enhanced, setEnhanced] = useState<{
     key: string;
     src: string;
+    surface?: "light" | "dark";
   } | null>(null);
   const src = icon?.src;
   const width = icon?.width;
@@ -46,7 +47,11 @@ function useEnhancedIcon(icon: TechnologyIconMetadata | null | undefined) {
     void enhanceTechnologyIcon(src, width, height)
       .then((result) => {
         if (active && result !== src) {
-          setEnhanced({ key, src: result });
+          setEnhanced({
+            key,
+            src: result,
+            surface: enhanceTechnologyIcon.surfaceFor(src, width, height),
+          });
         }
       })
       .catch(() => {
@@ -76,6 +81,22 @@ function chooseIconSource({
     : original;
 }
 
+function chooseIconSurface({
+  icon,
+  displayedSrc,
+  key,
+  enhanced,
+}: {
+  icon: TechnologyIconMetadata;
+  displayedSrc: string;
+  key: string;
+  enhanced: { key: string; surface?: "light" | "dark" } | null;
+}) {
+  return displayedSrc !== icon.src && enhanced?.key === key
+    ? (enhanced.surface ?? icon.surface)
+    : icon.surface;
+}
+
 export function TechnologyIcon({
   icon,
   label,
@@ -98,13 +119,14 @@ export function TechnologyIcon({
     );
   }
 
-  const surfaceClass = icon.surface === "dark" ? "bg-[#071a2e]" : "bg-white";
   const displayedSrc = chooseIconSource({
     original: icon.src,
     key,
     enhanced,
     failed: failedEnhancement,
   });
+  const surface = chooseIconSurface({ icon, displayedSrc, key, enhanced });
+  const surfaceClass = surface === "dark" ? "bg-[#071a2e]" : "bg-white";
 
   return (
     <span

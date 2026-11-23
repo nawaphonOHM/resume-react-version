@@ -64,6 +64,17 @@ describe("AboutSection presentation and content", () => {
     );
   });
 
+  it("restarts the clock animation when the displayed time changes", () => {
+    const { container, rerender } = render(
+      <AboutSection bangkokTime="12:00:00" />,
+    );
+    const firstTick = container.querySelector(".hero-clock-tick");
+    rerender(<AboutSection bangkokTime="12:00:01" />);
+    const nextTick = container.querySelector(".hero-clock-tick");
+    expect(nextTick?.textContent).toBe("12:00:01");
+    expect(nextTick).not.toBe(firstTick);
+  });
+
   it("renders quick action links for email and experience anchor", () => {
     const { container } = render(
       <AboutSection

@@ -15,10 +15,10 @@ export function SkillsSection({
       id="skills"
       data-resume-section
       aria-labelledby="skills-title"
-      className="scroll-mt-24"
+      className="scroll-mt-24 py-16 sm:py-20"
     >
       <Panel className="skills-panel overflow-hidden rounded-3xl border-0 bg-[#0b2847] p-0 text-white shadow-lg">
-        <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+        <div className="skills-panel-content grid gap-6 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:items-center">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-200 sm:text-sm">
               Technical toolkit

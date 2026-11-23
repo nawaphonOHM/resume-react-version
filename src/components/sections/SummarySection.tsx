@@ -13,10 +13,10 @@ export function SummarySection({ summary, items }: SummarySectionProps = {}) {
     <section
       id="summary"
       data-resume-section
-      className="scroll-mt-24 py-12 sm:py-16"
+      className="scroll-mt-24 py-16 sm:py-20"
       aria-labelledby="summary-title"
     >
-      <div className="section-heading grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] md:items-end">
+      <div className="section-heading section-heading--split grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] md:items-end">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--app-accent)] sm:text-sm">
             Professional summary

@@ -1,5 +1,7 @@
-import { fireEvent, render, waitFor } from "@testing-library/react";
+import { fireEvent, render as renderComponent } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { MemoryRouter } from "react-router-dom";
+import type { ReactNode } from "react";
 import App from "./App";
 import * as resumeDataHook from "./hooks/use-resume-data";
 import * as downloadHook from "./hooks/use-resume-download";
@@ -73,12 +75,92 @@ function mockResumeDataState(
   });
 }
 
+function render(ui: ReactNode, initialEntries: string[] = ["/"]) {
+  return renderComponent(
+    <MemoryRouter
+      initialEntries={initialEntries}
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
+      {ui}
+    </MemoryRouter>,
+  );
+}
+
 describe("App component orchestration", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
   describe("lifecycle views", () => {
+    it("renders the video fallback without loading résumé data on unmatched paths", () => {
+      const useResumeDataSpy = vi.spyOn(resumeDataHook, "useResumeData");
+
+      const { container } = render(<App />, ["/watch"]);
+
+      const playerFrame = container.querySelector<HTMLIFrameElement>("iframe");
+      expect(playerFrame).not.toBeNull();
+      expect(playerFrame?.getAttribute("sandbox")?.split(" ")).toEqual([
+        "allow-scripts",
+        "allow-presentation",
+        "allow-popups",
+        "allow-popups-to-escape-sandbox",
+      ]);
+      expect(useResumeDataSpy).not.toHaveBeenCalled();
+      expect(container.textContent).toContain("A video break");
+      expect(
+        container.querySelector(
+          'a[href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"]',
+        ),
+      ).not.toBeNull();
+      expect(container.textContent).toContain("Return to the résumé");
+    });
+
+    it("keeps hash URLs on the résumé route", () => {
+      mockResumeDataState();
+
+      const { container } = render(<App />, ["/#experience"]);
+
+      expect(container.querySelector("iframe")).toBeNull();
+      expect(container.querySelector('a[href="#experience"]')).not.toBeNull();
+    });
+
+    it("returns from the video fallback to the résumé route", () => {
+      mockResumeDataState();
+
+      const { container } = render(<App />, ["/watch"]);
+      const resumeLink = container.querySelector(".video-page__resume-link");
+      if (!resumeLink) {
+        throw new Error("Fallback résumé link was not rendered");
+      }
+      fireEvent.click(resumeLink);
+
+      expect(container.querySelector("iframe")).toBeNull();
+      expect(container.textContent).toContain(mockProfile.name);
+    });
+
+    it("restores initial focus after the video frame loads", () => {
+      const { container } = render(<App />, ["/watch"]);
+      const mainContent = container.querySelector("#video-page-main");
+      const playerFrame = container.querySelector("iframe");
+
+      expect(document.activeElement).toBe(mainContent);
+      playerFrame?.focus();
+      if (playerFrame) fireEvent.load(playerFrame);
+
+      expect(document.activeElement).toBe(mainContent);
+    });
+
+    it("does not restore focus after the user interacts with the fallback page", () => {
+      const { container } = render(<App />, ["/watch"]);
+      const playerFrame = container.querySelector("iframe");
+
+      playerFrame?.focus();
+      fireEvent.keyDown(document, { key: "Tab" });
+      if (playerFrame) fireEvent.load(playerFrame);
+
+      expect(document.activeElement).toBe(playerFrame);
+    });
+
     it("opts out of fallback data so exhausted API failures stay visible", () => {
       const useResumeDataSpy = vi.spyOn(resumeDataHook, "useResumeData");
       mockResumeDataState();
@@ -169,7 +251,8 @@ describe("App component orchestration", () => {
       expect(updatedTheme).not.toBe(initialTheme);
     });
 
-    it("opens zoom dialog on image click and closes on dismiss", async () => {
+    // eslint-disable-next-line max-statements
+    it("opens an anchored preview on keyboard activation and closes on Escape", () => {
       mockResumeDataState();
       const { container } = render(<App />);
 
@@ -177,17 +260,23 @@ describe("App component orchestration", () => {
         'button[aria-label*="PSU logo"]',
       );
       expect(logoBtn).not.toBeNull();
-      if (logoBtn) fireEvent.click(logoBtn);
-
-      const closeBtn = container.querySelector<HTMLButtonElement>(
-        'button[aria-label="Close logo preview"]',
-      );
-      expect(closeBtn).not.toBeNull();
-      if (closeBtn) fireEvent.click(closeBtn);
-
-      await waitFor(() => {
-        expect(container.querySelector('[role="dialog"]')).toBeNull();
+      const source = logoBtn?.querySelector("img");
+      if (!logoBtn || !source) throw new Error("Logo not found");
+      Object.defineProperties(source, {
+        naturalWidth: { configurable: true, value: 128 },
+        naturalHeight: { configurable: true, value: 64 },
       });
+      vi.spyOn(source, "getBoundingClientRect").mockReturnValue(
+        new DOMRect(100, 100, 32, 16),
+      );
+      logoBtn.focus();
+      fireEvent.click(logoBtn, { detail: 0 });
+      expect(
+        document.querySelector("[data-image-zoom-preview]"),
+      ).not.toBeNull();
+      expect(document.activeElement).toBe(logoBtn);
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(document.querySelector("[data-image-zoom-preview]")).toBeNull();
     });
 
     it("triggers download request when clicking header download button", () => {
@@ -271,8 +360,7 @@ describe("App component orchestration", () => {
       });
 
       const { container } = render(<App />);
-      const headerIdentity = container.querySelector(".header-identity-name");
-      expect(headerIdentity?.textContent).toBe("");
+      expect(container.querySelector(".header-identity-name")).toBeNull();
       expect(container.textContent).not.toContain("Nawaphon Isarathanachaikul");
       expect(container.querySelector("footer")).toBeNull();
     });
@@ -285,10 +373,7 @@ describe("App component orchestration", () => {
       });
 
       const { container } = render(<App />);
-      const errorHeaderIdentity = container.querySelector(
-        ".header-identity-name",
-      );
-      expect(errorHeaderIdentity?.textContent).toBe("");
+      expect(container.querySelector(".header-identity-name")).toBeNull();
       expect(container.textContent).not.toContain("Nawaphon Isarathanachaikul");
       expect(container.querySelector("footer")).toBeNull();
     });

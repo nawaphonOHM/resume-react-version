@@ -42,7 +42,7 @@ function SectionPlaceholder({
       data-resume-section
       aria-labelledby={headingId}
       aria-busy={!failed}
-      className="deferred-section min-h-56 scroll-mt-24 rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 sm:p-8"
+      className={`deferred-section deferred-section--${sectionId} scroll-mt-24 rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 sm:p-8`}
       role={failed ? "alert" : undefined}
     >
       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--app-accent)] sm:text-sm">
@@ -228,7 +228,11 @@ export function DeferredSection({
   }, [shouldRender]);
 
   return (
-    <div ref={wrapperRef} data-deferred-section={sectionId}>
+    <div
+      ref={wrapperRef}
+      className={shouldRender ? "resume-defer-target" : undefined}
+      data-deferred-section={sectionId}
+    >
       {shouldRender ? (
         <SectionErrorBoundary
           key={retryCount}
