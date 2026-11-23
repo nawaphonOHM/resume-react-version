@@ -3,18 +3,21 @@ import { resumeData } from "../../resume-data";
 
 export interface SkillsSectionProps {
   skills?: readonly string[] | string[];
+  print?: boolean;
 }
 
 export function SkillsSection({
   skills: propsSkills,
+  print = false,
 }: SkillsSectionProps = {}) {
   const skills = propsSkills ?? resumeData.skills;
+  const sectionId = print ? "print-skills" : "skills";
 
   return (
     <section
-      id="skills"
-      data-resume-section
-      aria-labelledby="skills-title"
+      id={sectionId}
+      data-resume-section={print ? undefined : ""}
+      aria-labelledby={`${sectionId}-title`}
       className="scroll-mt-24 py-16 sm:py-20"
     >
       <Panel className="skills-panel overflow-hidden rounded-3xl border-0 bg-[#0b2847] p-0 text-white shadow-lg">
@@ -24,7 +27,7 @@ export function SkillsSection({
               Technical toolkit
             </p>
             <h2
-              id="skills-title"
+              id={`${sectionId}-title`}
               className="mt-2 text-3xl font-bold tracking-tight text-white"
             >
               Core skills

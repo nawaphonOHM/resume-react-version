@@ -1,5 +1,3 @@
-import { useLayoutEffect, useState } from "react";
-import { flushSync } from "react-dom";
 import type { ZoomImage } from "../common/image-zoom";
 import { AboutSection, type AboutSectionProps } from "../sections/AboutSection";
 import { EducationSection } from "../sections/EducationSection";
@@ -8,6 +6,7 @@ import { ProfileSection } from "../sections/ProfileSection";
 import { SkillsSection } from "../sections/SkillsSection";
 import { SummarySection } from "../sections/SummarySection";
 import { DeferredSection } from "./DeferredSection";
+import { PrintResumeSections } from "./PrintResumeSections";
 import type {
   ResumeDetails,
   ResumeEducation,
@@ -79,24 +78,8 @@ export function ResumeContent({
   onSelectImage,
   ...props
 }: ResumeContentProps) {
-  const [renderAllSections, setRenderAllSections] = useState(false);
   const upper = resolveUpperSections({ profile, onSelectImage, ...props });
   const lower = resolveLowerSections({ profile, onSelectImage, ...props });
-
-  useLayoutEffect(() => {
-    const renderAllBeforePrint = () => {
-      // The browser snapshots the DOM as soon as beforeprint returns.
-      // eslint-disable-next-line @eslint-react/dom-no-flush-sync
-      flushSync(() => {
-        setRenderAllSections(true);
-      });
-    };
-
-    window.addEventListener("beforeprint", renderAllBeforePrint);
-    return () => {
-      window.removeEventListener("beforeprint", renderAllBeforePrint);
-    };
-  }, []);
 
   return (
     <main id="main-content" tabIndex={-1} className="resume-main">
@@ -106,7 +89,7 @@ export function ResumeContent({
         <DeferredSection
           sectionId="summary"
           title="Professional summary"
-          renderAll={renderAllSections}
+          renderAll={false}
         >
           <SummarySection summary={upper.summary} />
         </DeferredSection>
@@ -114,7 +97,7 @@ export function ResumeContent({
         <DeferredSection
           sectionId="experience"
           title="Experience timeline"
-          renderAll={renderAllSections}
+          renderAll={false}
         >
           <ExperienceSection
             experience={upper.experience}
@@ -126,7 +109,7 @@ export function ResumeContent({
           sectionId="education"
           anchorIds={LOWER_SECTION_ANCHORS}
           title="Education, skills, and profile"
-          renderAll={renderAllSections}
+          renderAll={false}
         >
           <div>
             <EducationSection
@@ -145,6 +128,11 @@ export function ResumeContent({
             </aside>
           </div>
         </DeferredSection>
+        <PrintResumeSections
+          {...upper}
+          {...lower}
+          onSelectImage={onSelectImage}
+        />
       </div>
     </main>
   );

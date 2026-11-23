@@ -63,14 +63,13 @@ function getContentBox(source: HTMLImageElement) {
   return { width: Math.max(width, 0), height: Math.max(height, 0) };
 }
 
-// eslint-disable-next-line complexity
 function isUsefulEnlargement(image: ZoomImage, source: HTMLImageElement) {
-  if (source.complete && source.currentSrc && source.naturalWidth === 0) {
+  if (isBrokenLoadedImage(source)) {
     return false;
   }
   const intrinsic = getIntrinsicSize(image, source);
   const content = getContentBox(source);
-  if (!intrinsic || content.width <= 0 || content.height <= 0) {
+  if (!intrinsic || !hasPositiveDimensions(content)) {
     return false;
   }
 
@@ -81,11 +80,84 @@ function isUsefulEnlargement(image: ZoomImage, source: HTMLImageElement) {
   return Number.isFinite(scale) && scale < 1 - DOWNSCALE_TOLERANCE;
 }
 
+function isBrokenLoadedImage(source: HTMLImageElement) {
+  return (
+    source.complete && Boolean(source.currentSrc) && source.naturalWidth === 0
+  );
+}
+
+function hasPositiveDimensions({
+  width,
+  height,
+}: {
+  width: number;
+  height: number;
+}) {
+  return width > 0 && height > 0;
+}
+
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), Math.max(minimum, maximum));
 }
 
-// eslint-disable-next-line max-statements
+interface ViewportSize {
+  width: number;
+  height: number;
+}
+
+function getMaximumImageSize({ width, height }: ViewportSize) {
+  return {
+    width: Math.min(
+      width * IMAGE_MAX_VIEWPORT_RATIO,
+      Math.max(width - VIEWPORT_MARGIN * 2 - PANEL_CHROME, 0),
+    ),
+    height: Math.min(
+      height * IMAGE_MAX_VIEWPORT_RATIO,
+      Math.max(height - VIEWPORT_MARGIN * 2 - PANEL_CHROME, 0),
+    ),
+  };
+}
+
+interface PanelSizeInput {
+  intrinsic: { width: number; height: number };
+  maximum: { width: number; height: number };
+}
+
+function getPanelSize({ intrinsic, maximum }: PanelSizeInput) {
+  return {
+    width: Math.min(intrinsic.width, maximum.width) + PANEL_CHROME,
+    height: Math.min(intrinsic.height, maximum.height) + PANEL_CHROME,
+  };
+}
+
+interface PreviewPositionInput {
+  origin: DOMRect;
+  panel: { width: number; height: number };
+  viewport: ViewportSize;
+}
+
+function getPreviewPosition({ origin, panel, viewport }: PreviewPositionInput) {
+  const centered = {
+    left: origin.left + (origin.width - panel.width) / 2,
+    top: origin.top + (origin.height - panel.height) / 2,
+  };
+  const positions = [
+    { left: origin.right + ORIGIN_GAP, top: centered.top },
+    { left: origin.left - ORIGIN_GAP - panel.width, top: centered.top },
+    { left: centered.left, top: origin.bottom + ORIGIN_GAP },
+    { left: centered.left, top: origin.top - ORIGIN_GAP - panel.height },
+  ];
+  return (
+    positions.find(
+      ({ left, top }) =>
+        left >= VIEWPORT_MARGIN &&
+        top >= VIEWPORT_MARGIN &&
+        left + panel.width <= viewport.width - VIEWPORT_MARGIN &&
+        top + panel.height <= viewport.height - VIEWPORT_MARGIN,
+    ) ?? { left: origin.right + ORIGIN_GAP, top: centered.top }
+  );
+}
+
 function calculateGeometry(
   image: ZoomImage,
   source: HTMLImageElement,
@@ -96,48 +168,28 @@ function calculateGeometry(
     return null;
   }
 
-  const viewportWidth = view.innerWidth;
-  const viewportHeight = view.innerHeight;
-  const maxImageWidth = Math.min(
-    viewportWidth * IMAGE_MAX_VIEWPORT_RATIO,
-    Math.max(viewportWidth - VIEWPORT_MARGIN * 2 - PANEL_CHROME, 0),
-  );
-  const maxImageHeight = Math.min(
-    viewportHeight * IMAGE_MAX_VIEWPORT_RATIO,
-    Math.max(viewportHeight - VIEWPORT_MARGIN * 2 - PANEL_CHROME, 0),
-  );
-  const panelWidth = Math.min(intrinsic.width, maxImageWidth) + PANEL_CHROME;
-  const panelHeight = Math.min(intrinsic.height, maxImageHeight) + PANEL_CHROME;
-  const originRect = source.getBoundingClientRect();
-  const centeredTop = originRect.top + (originRect.height - panelHeight) / 2;
-  const centeredLeft = originRect.left + (originRect.width - panelWidth) / 2;
-  const positions = [
-    { left: originRect.right + ORIGIN_GAP, top: centeredTop },
-    { left: originRect.left - ORIGIN_GAP - panelWidth, top: centeredTop },
-    { left: centeredLeft, top: originRect.bottom + ORIGIN_GAP },
-    { left: centeredLeft, top: originRect.top - ORIGIN_GAP - panelHeight },
-  ];
-  const position = positions.find(
-    ({ left, top }) =>
-      left >= VIEWPORT_MARGIN &&
-      top >= VIEWPORT_MARGIN &&
-      left + panelWidth <= viewportWidth - VIEWPORT_MARGIN &&
-      top + panelHeight <= viewportHeight - VIEWPORT_MARGIN,
-  ) ?? { left: originRect.right + ORIGIN_GAP, top: centeredTop };
+  const viewport = { width: view.innerWidth, height: view.innerHeight };
+  const maximum = getMaximumImageSize(viewport);
+  const panel = getPanelSize({ intrinsic, maximum });
+  const position = getPreviewPosition({
+    origin: source.getBoundingClientRect(),
+    panel,
+    viewport,
+  });
 
   return {
     left: clamp(
       position.left,
       VIEWPORT_MARGIN,
-      viewportWidth - VIEWPORT_MARGIN - panelWidth,
+      viewport.width - VIEWPORT_MARGIN - panel.width,
     ),
     top: clamp(
       position.top,
       VIEWPORT_MARGIN,
-      viewportHeight - VIEWPORT_MARGIN - panelHeight,
+      viewport.height - VIEWPORT_MARGIN - panel.height,
     ),
-    maxImageWidth,
-    maxImageHeight,
+    maxImageWidth: maximum.width,
+    maxImageHeight: maximum.height,
   };
 }
 
@@ -169,69 +221,16 @@ export function ImageZoomDialog({ image, onClose }: ImageZoomDialogProps) {
   const previewImageRef = useRef<HTMLImageElement>(null);
   const updatePositionRef = useRef<() => void>(() => {});
 
-  // eslint-disable-next-line max-statements
   useLayoutEffect(() => {
-    if (!image) {
-      return;
-    }
-
-    const source = getSourceImage(image.origin);
-    if (!source) {
-      onClose();
-      return;
-    }
-
-    const updatePosition = () => {
-      const preview = previewRef.current;
-      if (!preview) {
-        return;
-      }
-      preview.style.visibility = "hidden";
-      if (
-        !image.origin.isConnected ||
-        !applyPreviewGeometry(preview, image, source)
-      ) {
-        onClose();
-        return;
-      }
-      preview.style.visibility = "visible";
-    };
-    updatePositionRef.current = updatePosition;
-    updatePosition();
-
-    const closeOnOutsidePointer = (event: PointerEvent) => {
-      const target = event.target;
-      const trigger = image.origin.closest("button, a") ?? image.origin;
-      if (target instanceof Node && !trigger.contains(target)) {
-        onClose();
-      }
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    document.addEventListener("pointerdown", closeOnOutsidePointer);
-    document.addEventListener("keydown", closeOnEscape);
-    window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true);
-
-    const ResizeObserverConstructor = globalThis.ResizeObserver;
-    const resizeObserver =
-      typeof ResizeObserverConstructor === "function"
-        ? new ResizeObserverConstructor(updatePosition)
-        : null;
-    resizeObserver?.observe(source);
-
-    return () => {
-      updatePositionRef.current = () => {};
-      document.removeEventListener("pointerdown", closeOnOutsidePointer);
-      document.removeEventListener("keydown", closeOnEscape);
-      window.removeEventListener("resize", updatePosition);
-      window.removeEventListener("scroll", updatePosition, true);
-      resizeObserver?.disconnect();
-    };
+    if (!image) return;
+    return setupZoomPreview({
+      image,
+      preview: previewRef.current,
+      onClose,
+      setUpdatePosition: (updatePosition) => {
+        updatePositionRef.current = updatePosition;
+      },
+    });
   }, [image, onClose]);
 
   if (!image || typeof document === "undefined") {
@@ -265,4 +264,122 @@ export function ImageZoomDialog({ image, onClose }: ImageZoomDialogProps) {
     </div>,
     document.body,
   );
+}
+
+function createPositionUpdater({
+  preview,
+  image,
+  source,
+  onClose,
+}: {
+  preview: HTMLDivElement | null;
+  image: ZoomImage;
+  source: HTMLImageElement;
+  onClose: () => void;
+}) {
+  return () => {
+    if (!preview) return;
+    preview.style.visibility = "hidden";
+    if (
+      !image.origin.isConnected ||
+      !applyPreviewGeometry(preview, image, source)
+    ) {
+      onClose();
+      return;
+    }
+    preview.style.visibility = "visible";
+  };
+}
+
+interface ZoomPreviewSetupInput {
+  image: ZoomImage;
+  preview: HTMLDivElement | null;
+  onClose: () => void;
+  setUpdatePosition: (updatePosition: () => void) => void;
+}
+
+function setupZoomPreview({
+  image,
+  preview,
+  onClose,
+  setUpdatePosition,
+}: ZoomPreviewSetupInput) {
+  const source = getSourceImage(image.origin);
+  if (!source) {
+    onClose();
+    return;
+  }
+  const updatePosition = createPositionUpdater({
+    preview,
+    image,
+    source,
+    onClose,
+  });
+  setUpdatePosition(updatePosition);
+  updatePosition();
+  const removeListeners = installPreviewListeners({
+    image,
+    source,
+    onClose,
+    updatePosition,
+  });
+  return () => {
+    setUpdatePosition(() => {});
+    removeListeners();
+  };
+}
+
+interface PreviewListenerInput {
+  image: ZoomImage;
+  source: HTMLImageElement;
+  onClose: () => void;
+  updatePosition: () => void;
+}
+
+function installPreviewListeners({
+  image,
+  source,
+  onClose,
+  updatePosition,
+}: PreviewListenerInput) {
+  const closeOnOutsidePointer = (event: PointerEvent) => {
+    handleOutsidePointer(image, onClose, event);
+  };
+  const closeOnEscape = (event: KeyboardEvent) => {
+    if (event.key === "Escape") onClose();
+  };
+  document.addEventListener("pointerdown", closeOnOutsidePointer);
+  document.addEventListener("keydown", closeOnEscape);
+  window.addEventListener("resize", updatePosition);
+  window.addEventListener("scroll", updatePosition, true);
+  const resizeObserver = observePreviewResize(source, updatePosition);
+
+  return () => {
+    document.removeEventListener("pointerdown", closeOnOutsidePointer);
+    document.removeEventListener("keydown", closeOnEscape);
+    window.removeEventListener("resize", updatePosition);
+    window.removeEventListener("scroll", updatePosition, true);
+    resizeObserver?.disconnect();
+  };
+}
+
+function handleOutsidePointer(
+  image: ZoomImage,
+  onClose: () => void,
+  event: PointerEvent,
+) {
+  const target = event.target;
+  const trigger = image.origin.closest("button, a") ?? image.origin;
+  if (target instanceof Node && !trigger.contains(target)) onClose();
+}
+
+function observePreviewResize(
+  source: HTMLImageElement,
+  updatePosition: () => void,
+) {
+  const ResizeObserverConstructor = globalThis.ResizeObserver;
+  if (typeof ResizeObserverConstructor !== "function") return null;
+  const observer = new ResizeObserverConstructor(updatePosition);
+  observer.observe(source);
+  return observer;
 }

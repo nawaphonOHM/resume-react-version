@@ -11,29 +11,61 @@ vi.mock("../../services/technology-icon-contrast", () => ({
   ),
 }));
 
-// eslint-disable-next-line max-statements
-describe("TechnologyIcon", () => {
-  const mockLightIcon: TechnologyIconMetadata = {
-    src: "https://resume-images.ohm-mho.space/technology-icons/react.svg",
-    width: 24,
-    height: 24,
-    surface: "light",
-  };
+const mockLightIcon: TechnologyIconMetadata = {
+  src: "https://resume-images.ohm-mho.space/technology-icons/react.svg",
+  width: 24,
+  height: 24,
+  surface: "light",
+};
 
-  const mockDarkIcon: TechnologyIconMetadata = {
-    src: "https://resume-images.ohm-mho.space/technology-icons/aws.svg",
-    width: 24,
-    height: 24,
-    surface: "dark",
-  };
+const mockDarkIcon: TechnologyIconMetadata = {
+  src: "https://resume-images.ohm-mho.space/technology-icons/aws.svg",
+  width: 24,
+  height: 24,
+  surface: "dark",
+};
 
-  beforeEach(() => {
-    vi.mocked(enhanceTechnologyIcon).mockReset();
-    vi.mocked(enhanceTechnologyIcon).mockImplementation((src) =>
-      Promise.resolve(src),
-    );
+beforeEach(() => {
+  vi.mocked(enhanceTechnologyIcon).mockReset();
+  vi.mocked(enhanceTechnologyIcon).mockImplementation((src) =>
+    Promise.resolve(src),
+  );
+});
+
+function expectIconSource(container: HTMLElement, src: string) {
+  expect(container.querySelector("img")?.getAttribute("src")).toBe(src);
+}
+
+function expectIconBackground(container: HTMLElement, className: string) {
+  expect(
+    container
+      .querySelector(".technology-icon-frame")
+      ?.classList.contains(className),
+  ).toBe(true);
+}
+
+async function resolveEnhancementAndAssert(
+  resolveEnhancement: (value: string) => void,
+  container: HTMLElement,
+) {
+  await act(async () => {
+    resolveEnhancement("data:image/png;base64,enhanced");
+    await Promise.resolve();
   });
+  expectIconSource(container, "data:image/png;base64,enhanced");
+  expectIconBackground(container, "bg-[#071a2e]");
+}
 
+function expectOriginalIconRestored(
+  container: HTMLElement,
+  onError: () => void,
+) {
+  expectIconSource(container, mockLightIcon.src);
+  expectIconBackground(container, "bg-white");
+  expect(onError).not.toHaveBeenCalled();
+}
+
+describe("TechnologyIcon", () => {
   it("renders a brand icon image with correct attributes and light surface background", () => {
     const { container } = render(
       <TechnologyIcon icon={mockLightIcon} label="React" />,
@@ -125,7 +157,6 @@ describe("TechnologyIcon", () => {
     );
   });
 
-  // eslint-disable-next-line max-statements
   it("keeps the original while processing and restores it if enhancement fails to display", async () => {
     const onError = vi.fn();
     let resolveEnhancement: (value: string) => void = () => {};
@@ -137,31 +168,10 @@ describe("TechnologyIcon", () => {
     const { container } = render(
       <TechnologyIcon icon={mockLightIcon} label="React" onError={onError} />,
     );
-    expect(container.querySelector("img")?.getAttribute("src")).toBe(
-      mockLightIcon.src,
-    );
-    await act(async () => {
-      resolveEnhancement("data:image/png;base64,enhanced");
-      await Promise.resolve();
-    });
-    expect(container.querySelector("img")?.getAttribute("src")).toBe(
-      "data:image/png;base64,enhanced",
-    );
-    expect(
-      container
-        .querySelector(".technology-icon-frame")
-        ?.classList.contains("bg-[#071a2e]"),
-    ).toBe(true);
+    expectIconSource(container, mockLightIcon.src);
+    await resolveEnhancementAndAssert(resolveEnhancement, container);
     fireEvent.error(container.querySelector("img") as HTMLImageElement);
-    expect(container.querySelector("img")?.getAttribute("src")).toBe(
-      mockLightIcon.src,
-    );
-    expect(
-      container
-        .querySelector(".technology-icon-frame")
-        ?.classList.contains("bg-white"),
-    ).toBe(true);
-    expect(onError).not.toHaveBeenCalled();
+    expectOriginalIconRestored(container, onError);
     fireEvent.error(container.querySelector("img") as HTMLImageElement);
     expect(onError).toHaveBeenCalledOnce();
   });

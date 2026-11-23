@@ -151,6 +151,10 @@ html.theme-transitioning {
   transition-timing-function: ease;
 }
 
+.print-resume-sections {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -212,6 +216,14 @@ html.theme-transitioning {
 
   .no-print {
     display: none !important;
+  }
+
+  [data-deferred-section] {
+    display: none !important;
+  }
+
+  .print-resume-sections {
+    display: block;
   }
 
   a[href] {
@@ -311,7 +323,7 @@ html.theme-transitioning {
     transform: none !important;
   }
 
-  [data-deferred-section="experience"] > section {
+  #print-experience {
     break-before: page;
   }
 

@@ -1,5 +1,9 @@
-import { fireEvent, render as renderComponent } from "@testing-library/react";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render as renderComponent,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactNode } from "react";
 import App from "./App";
@@ -86,7 +90,35 @@ function render(ui: ReactNode, initialEntries: string[] = ["/"]) {
   );
 }
 
+function activateKeyboardPreview(
+  button: HTMLButtonElement,
+  source: HTMLImageElement,
+) {
+  Object.defineProperties(source, {
+    naturalWidth: { configurable: true, value: 128 },
+    naturalHeight: { configurable: true, value: 64 },
+  });
+  vi.spyOn(source, "getBoundingClientRect").mockReturnValue(
+    new DOMRect(100, 100, 32, 16),
+  );
+  button.focus();
+  fireEvent.click(button, { detail: 0 });
+}
+
+function expectKeyboardPreviewOpen(button: HTMLButtonElement) {
+  expect(document.querySelector("[data-image-zoom-preview]")).not.toBeNull();
+  expect(document.activeElement).toBe(button);
+}
+
+function expectKeyboardPreviewClosed() {
+  expect(document.querySelector("[data-image-zoom-preview]")).toBeNull();
+}
+
 describe("App component orchestration", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -251,7 +283,6 @@ describe("App component orchestration", () => {
       expect(updatedTheme).not.toBe(initialTheme);
     });
 
-    // eslint-disable-next-line max-statements
     it("opens an anchored preview on keyboard activation and closes on Escape", () => {
       mockResumeDataState();
       const { container } = render(<App />);
@@ -262,21 +293,10 @@ describe("App component orchestration", () => {
       expect(logoBtn).not.toBeNull();
       const source = logoBtn?.querySelector("img");
       if (!logoBtn || !source) throw new Error("Logo not found");
-      Object.defineProperties(source, {
-        naturalWidth: { configurable: true, value: 128 },
-        naturalHeight: { configurable: true, value: 64 },
-      });
-      vi.spyOn(source, "getBoundingClientRect").mockReturnValue(
-        new DOMRect(100, 100, 32, 16),
-      );
-      logoBtn.focus();
-      fireEvent.click(logoBtn, { detail: 0 });
-      expect(
-        document.querySelector("[data-image-zoom-preview]"),
-      ).not.toBeNull();
-      expect(document.activeElement).toBe(logoBtn);
+      activateKeyboardPreview(logoBtn, source);
+      expectKeyboardPreviewOpen(logoBtn);
       fireEvent.keyDown(document, { key: "Escape" });
-      expect(document.querySelector("[data-image-zoom-preview]")).toBeNull();
+      expectKeyboardPreviewClosed();
     });
 
     it("triggers download request when clicking header download button", () => {

@@ -57,6 +57,77 @@ class TestIntersectionObserver implements IntersectionObserver {
   }
 }
 
+function prepareTestObserver() {
+  TestIntersectionObserver.instances = [];
+  vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
+}
+
+function getTestObserver() {
+  const observer = TestIntersectionObserver.instances.at(0);
+  if (!observer) throw new Error("IntersectionObserver was not created");
+  return observer;
+}
+
+async function appendObservedSection(
+  observer: TestIntersectionObserver,
+  id: string,
+) {
+  const section = document.createElement("section");
+  section.id = id;
+  section.setAttribute("data-resume-section", "");
+  document.body.append(section);
+  await waitFor(() => {
+    expect(observer.observedTargets).toContain(section);
+  });
+  return section;
+}
+
+async function replaceObservedSection(
+  observer: TestIntersectionObserver,
+  section: HTMLElement,
+) {
+  const replacement = document.createElement("section");
+  replacement.id = section.id;
+  replacement.setAttribute("data-resume-section", "");
+  section.replaceWith(replacement);
+  await waitFor(() => {
+    expect(observer.unobservedTargets).toContain(section);
+    expect(observer.observedTargets).toContain(replacement);
+  });
+  return replacement;
+}
+
+function intersectSection(
+  observer: TestIntersectionObserver,
+  section: Element,
+) {
+  act(() => {
+    observer.intersect(section);
+  });
+}
+
+function verifyStaleEntryHandling({
+  observer,
+  placeholder,
+  replacement,
+  result,
+}: {
+  observer: TestIntersectionObserver;
+  placeholder: Element;
+  replacement: HTMLElement;
+  result: { current: { activeSection: string } };
+}) {
+  act(() => {
+    window.location.hash = "#summary";
+    window.dispatchEvent(new Event("hashchange"));
+    observer.intersect(placeholder);
+  });
+  expect(result.current.activeSection).toBe("summary");
+  intersectSection(observer, replacement);
+  expect(result.current.activeSection).toBe("experience");
+  replacement.remove();
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -83,50 +154,14 @@ describe("useActiveSection", () => {
     expect(result.current.activeSection).toBe("experience");
   });
 
-  // eslint-disable-next-line max-statements
   it("observes sections inserted later and ignores replaced section entries", async () => {
-    TestIntersectionObserver.instances = [];
-    vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
-
+    prepareTestObserver();
     const { result } = renderHook(() => useActiveSection());
-    const observer = TestIntersectionObserver.instances[0];
-
-    const placeholder = document.createElement("section");
-    placeholder.id = "experience";
-    placeholder.setAttribute("data-resume-section", "");
-    document.body.append(placeholder);
-
-    await waitFor(() => {
-      expect(observer.observedTargets).toContain(placeholder);
-    });
-
-    act(() => {
-      observer.intersect(placeholder);
-    });
+    const observer = getTestObserver();
+    const placeholder = await appendObservedSection(observer, "experience");
+    intersectSection(observer, placeholder);
     expect(result.current.activeSection).toBe("experience");
-
-    const replacement = document.createElement("section");
-    replacement.id = "experience";
-    replacement.setAttribute("data-resume-section", "");
-    placeholder.replaceWith(replacement);
-
-    await waitFor(() => {
-      expect(observer.unobservedTargets).toContain(placeholder);
-      expect(observer.observedTargets).toContain(replacement);
-    });
-
-    act(() => {
-      window.location.hash = "#summary";
-      window.dispatchEvent(new Event("hashchange"));
-      observer.intersect(placeholder);
-    });
-    expect(result.current.activeSection).toBe("summary");
-
-    act(() => {
-      observer.intersect(replacement);
-    });
-    expect(result.current.activeSection).toBe("experience");
-
-    replacement.remove();
+    const replacement = await replaceObservedSection(observer, placeholder);
+    verifyStaleEntryHandling({ observer, placeholder, replacement, result });
   });
 });

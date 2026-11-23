@@ -6,27 +6,30 @@ import type { ZoomImage } from "../common/image-zoom";
 export interface EducationSectionProps {
   education?: ResumeEducation;
   onSelectImage: (image: ZoomImage) => void;
+  print?: boolean;
 }
 
 export function EducationSection({
   education: propsEducation,
   onSelectImage,
+  print = false,
 }: EducationSectionProps) {
   const education = propsEducation ?? resumeData.education;
   const institutionLogoAlt = `${education.institution} logo`;
+  const sectionId = print ? "print-education" : "education";
 
   return (
     <section
-      id="education"
-      data-resume-section
-      aria-labelledby="education-title"
+      id={sectionId}
+      data-resume-section={print ? undefined : ""}
+      aria-labelledby={`${sectionId}-title`}
       className="scroll-mt-24 py-16 sm:py-20"
     >
       <div className="section-heading section-heading--split">
         <div>
           <p className="section-kicker">Academic background</p>
           <h2
-            id="education-title"
+            id={`${sectionId}-title`}
             className="text-3xl font-semibold text-[var(--app-heading)] sm:text-4xl"
           >
             Education

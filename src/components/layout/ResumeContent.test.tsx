@@ -1,78 +1,76 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ResumeContent } from "./ResumeContent";
+import { PrintResumeSections } from "./PrintResumeSections";
 import type { ResumeProfile } from "../../resume-data";
+import { enhanceTechnologyIcon } from "../../services/technology-icon-contrast";
+import {
+  installIntersectionObserverMock,
+  observerFor,
+} from "./resume-content.test-fixtures";
 
-class TestIntersectionObserver implements IntersectionObserver {
-  static instances: TestIntersectionObserver[] = [];
+vi.mock("../../services/technology-icon-contrast", () => ({
+  enhanceTechnologyIcon: Object.assign(
+    vi.fn((src: string) => Promise.resolve(src)),
+    { surfaceFor: vi.fn(() => "dark" as const) },
+  ),
+}));
 
-  readonly root = null;
-  readonly rootMargin: string;
-  readonly scrollMargin = "0px";
-  readonly thresholds: readonly number[];
-  readonly observedTargets: Element[] = [];
-  readonly callback: IntersectionObserverCallback;
-
-  constructor(
-    callback: IntersectionObserverCallback,
-    options?: IntersectionObserverInit,
-  ) {
-    this.callback = callback;
-    this.rootMargin = options?.rootMargin ?? "0px";
-    this.thresholds = Array.isArray(options?.threshold)
-      ? options.threshold
-      : [options?.threshold ?? 0];
-    TestIntersectionObserver.instances.push(this);
-  }
-
-  observe(target: Element): void {
-    this.observedTargets.push(target);
-  }
-
-  unobserve(target: Element): void {
-    const index = this.observedTargets.indexOf(target);
-    if (index >= 0) {
-      this.observedTargets.splice(index, 1);
-    }
-  }
-
-  disconnect(): void {}
-
-  takeRecords(): IntersectionObserverEntry[] {
-    return [];
-  }
-
-  intersect(target: Element): void {
-    const entry = {
-      target,
-      isIntersecting: true,
-      intersectionRatio: 1,
-      boundingClientRect: {} as DOMRectReadOnly,
-      intersectionRect: {} as DOMRectReadOnly,
-      rootBounds: null,
-      time: 0,
-    } satisfies IntersectionObserverEntry;
-    this.callback([entry], this);
-  }
+function section(container: HTMLElement, id: string): HTMLElement {
+  const element = container.querySelector<HTMLElement>(id);
+  if (!element) throw new Error(`Missing section ${id}`);
+  return element;
 }
 
-function installIntersectionObserverMock(): void {
-  TestIntersectionObserver.instances = [];
-  vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
-}
-
-function observerFor(target: Element): TestIntersectionObserver {
-  const observer = TestIntersectionObserver.instances.find((instance) =>
-    instance.observedTargets.includes(target),
+function expectUniqueIds(container: HTMLElement) {
+  const ids = Array.from(
+    container.querySelectorAll("[id]"),
+    (element) => element.id,
   );
-  if (!observer) {
-    throw new Error("No intersection observer is watching the section");
+  expect(new Set(ids).size).toBe(ids.length);
+  for (const element of container.querySelectorAll("[aria-labelledby]")) {
+    const headingId = element.getAttribute("aria-labelledby");
+    if (!headingId) throw new Error("Missing heading ID");
+    expect(container.querySelectorAll(`[id="${headingId}"]`)).toHaveLength(1);
   }
-  return observer;
+}
+
+function expectPrintContent(print: HTMLElement) {
+  expect(print.textContent).toContain("Custom summary bullet point 1");
+  expect(print.textContent).toContain("Lead Engineer");
+  expect(print.textContent).toContain("M.Sc. Computer Science");
+  expect(print.textContent).toContain("Distributed Systems");
+  expect(print.querySelectorAll("[data-resume-section]")).toHaveLength(0);
+  expect(print.querySelectorAll(".technology-chip img")).toHaveLength(0);
+}
+
+function expectInitialPlaceholders(container: HTMLElement) {
+  expect(container.querySelector("#summary")?.getAttribute("aria-busy")).toBe(
+    "true",
+  );
+  expect(container.querySelector("#education")).not.toBeNull();
+  expect(container.querySelector("#skills")).not.toBeNull();
+  expect(container.querySelector("#profile")).not.toBeNull();
+  expect(
+    section(container, '[data-deferred-section="experience"]').textContent,
+  ).not.toContain("Lead Engineer");
+  expect(
+    section(container, '[data-deferred-section="education"]'),
+  ).not.toBeNull();
+}
+
+function expectUpdatedPrintContent(print: HTMLElement, container: HTMLElement) {
+  expect(print.textContent).toContain("Updated override");
+  expect(print.textContent).not.toContain("Initial override");
+  expect(print.textContent).toContain("Updated skill");
+  expect(
+    section(container, '[data-deferred-section="summary"]').textContent,
+  ).not.toContain("Updated override");
 }
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/");
 });
@@ -144,8 +142,12 @@ describe("ResumeContent component", () => {
 
     expect(container.textContent).toContain("Custom Developer");
     expect(container.textContent).toContain("Cloud Architect");
-    expect(container.textContent).toContain("Custom summary bullet point 1");
-    expect(container.textContent).toContain("Custom summary bullet point 2");
+    expect(section(container, "#summary").textContent).toContain(
+      "Custom summary bullet point 1",
+    );
+    expect(section(container, "#summary").textContent).toContain(
+      "Custom summary bullet point 2",
+    );
   });
 
   it("renders experience and education sections with custom profile data", () => {
@@ -153,10 +155,16 @@ describe("ResumeContent component", () => {
       <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
     );
 
-    expect(container.textContent).toContain("Lead Engineer");
-    expect(container.textContent).toContain("Acme Corp");
-    expect(container.textContent).toContain("M.Sc. Computer Science");
-    expect(container.textContent).toContain("3.95");
+    expect(section(container, "#experience").textContent).toContain(
+      "Lead Engineer",
+    );
+    expect(section(container, "#experience").textContent).toContain(
+      "Acme Corp",
+    );
+    expect(section(container, "#education").textContent).toContain(
+      "M.Sc. Computer Science",
+    );
+    expect(section(container, "#education").textContent).toContain("3.95");
   });
 
   it("renders skills and profile sections with custom profile data", () => {
@@ -164,10 +172,18 @@ describe("ResumeContent component", () => {
       <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
     );
 
-    expect(container.textContent).toContain("Distributed Systems");
-    expect(container.textContent).toContain("custom.dev@example.com");
-    expect(container.textContent).toContain("089-999-9999");
-    expect(container.textContent).toContain("Custom Portfolio");
+    expect(section(container, "#skills").textContent).toContain(
+      "Distributed Systems",
+    );
+    expect(section(container, "#profile").textContent).toContain(
+      "custom.dev@example.com",
+    );
+    expect(section(container, "#profile").textContent).toContain(
+      "089-999-9999",
+    );
+    expect(section(container, "#profile").textContent).toContain(
+      "Custom Portfolio",
+    );
   });
 
   it("triggers image selection callback when clicking on logo buttons", () => {
@@ -180,7 +196,7 @@ describe("ResumeContent component", () => {
     );
 
     const institutionLogoButton = Array.from(
-      container.querySelectorAll("button"),
+      section(container, "#education").querySelectorAll("button"),
     ).find((btn) =>
       btn.getAttribute("aria-label")?.includes("Tech University"),
     );
@@ -209,14 +225,21 @@ describe("ResumeContent component", () => {
     );
 
     expect(container.querySelector('[aria-busy="true"]')).toBeNull();
-    expect(container.textContent).toContain("Custom summary bullet point 1");
-    expect(container.textContent).toContain("Lead Engineer");
-    expect(container.textContent).toContain("M.Sc. Computer Science");
-    expect(container.textContent).toContain("Distributed Systems");
+    expect(section(container, "#summary").textContent).toContain(
+      "Custom summary bullet point 1",
+    );
+    expect(section(container, "#experience").textContent).toContain(
+      "Lead Engineer",
+    );
+    expect(section(container, "#education").textContent).toContain(
+      "M.Sc. Computer Science",
+    );
+    expect(section(container, "#skills").textContent).toContain(
+      "Distributed Systems",
+    );
     expect(container.querySelectorAll("[data-resume-section]")).toHaveLength(6);
   });
 
-  // eslint-disable-next-line max-statements
   it("uses anchored placeholders until deferred sections intersect", () => {
     installIntersectionObserverMock();
 
@@ -224,37 +247,19 @@ describe("ResumeContent component", () => {
       <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
     );
 
-    const summaryPlaceholder = container.querySelector(
+    const summaryPlaceholder = section(
+      container,
       '[data-deferred-section="summary"]',
     );
-    const experiencePlaceholder = container.querySelector(
-      '[data-deferred-section="experience"]',
-    );
-    const profileGroupPlaceholder = container.querySelector(
-      '[data-deferred-section="education"]',
-    );
-
-    expect(container.querySelector("#summary")?.getAttribute("aria-busy")).toBe(
-      "true",
-    );
-    expect(container.querySelector("#education")).not.toBeNull();
-    expect(container.querySelector("#skills")).not.toBeNull();
-    expect(container.querySelector("#profile")).not.toBeNull();
-    expect(container.textContent).not.toContain("Lead Engineer");
-
-    if (
-      !summaryPlaceholder ||
-      !experiencePlaceholder ||
-      !profileGroupPlaceholder
-    ) {
-      throw new Error("Expected deferred section wrappers");
-    }
+    expectInitialPlaceholders(container);
 
     act(() => {
       observerFor(summaryPlaceholder).intersect(summaryPlaceholder);
     });
 
-    expect(container.textContent).toContain("Custom summary bullet point 1");
+    expect(summaryPlaceholder.textContent).toContain(
+      "Custom summary bullet point 1",
+    );
     expect(container.querySelector("#summary")?.getAttribute("aria-busy")).toBe(
       null,
     );
@@ -276,7 +281,9 @@ describe("ResumeContent component", () => {
     expect(
       container.querySelector("#skills")?.hasAttribute("data-resume-section"),
     ).toBe(true);
-    expect(container.textContent).toContain("Distributed Systems");
+    expect(section(container, "#skills").textContent).toContain(
+      "Distributed Systems",
+    );
     expect(scrollIntoView).toHaveBeenCalledOnce();
     expect(container.querySelector("#summary")?.getAttribute("aria-busy")).toBe(
       "true",
@@ -284,23 +291,114 @@ describe("ResumeContent component", () => {
     Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
   });
 
-  it("synchronously renders every section before printing", () => {
+  it("keeps all print sections ready before printing without mounting screen sections", () => {
     installIntersectionObserverMock();
+    vi.mocked(enhanceTechnologyIcon).mockClear();
 
     const { container } = render(
       <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
     );
 
-    expect(container.textContent).not.toContain("Lead Engineer");
+    const print = section(container, ".print-resume-sections");
+    expect(
+      section(container, '[data-deferred-section="experience"]').textContent,
+    ).not.toContain("Lead Engineer");
+    expectPrintContent(print);
+    expect(enhanceTechnologyIcon).not.toHaveBeenCalled();
 
     act(() => {
       window.dispatchEvent(new Event("beforeprint"));
     });
 
-    expect(container.textContent).toContain("Custom summary bullet point 1");
-    expect(container.textContent).toContain("Lead Engineer");
-    expect(container.textContent).toContain("M.Sc. Computer Science");
-    expect(container.textContent).toContain("Distributed Systems");
-    expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(0);
+    expect(
+      section(container, '[data-deferred-section="experience"]').textContent,
+    ).not.toContain("Lead Engineer");
+    expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(3);
+  });
+});
+
+describe("ResumeContent print and navigation updates", () => {
+  it("isolates a print section rendering failure", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const invalidSummary = "invalid" as unknown as string[];
+    const { container } = render(
+      <PrintResumeSections summary={invalidSummary} onSelectImage={vi.fn()} />,
+    );
+    expect(section(container, "#print-summary").textContent).toContain(
+      "This section could not be displayed.",
+    );
+    expect(section(container, "#print-experience").textContent).toContain(
+      "Experience timeline",
+    );
+    expect(section(container, "#print-education")).not.toBeNull();
+  });
+  it("keeps screen and print identifiers unique before and after mounting", () => {
+    installIntersectionObserverMock();
+    const { container } = render(
+      <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
+    );
+    expectUniqueIds(container);
+    const wrapper = section(container, '[data-deferred-section="education"]');
+    act(() => {
+      observerFor(wrapper).intersect(wrapper);
+    });
+    expectUniqueIds(container);
+    for (const id of [
+      "summary",
+      "experience",
+      "education",
+      "skills",
+      "profile",
+    ]) {
+      expect(
+        section(container, `#print-${id}`).hasAttribute("data-resume-section"),
+      ).toBe(false);
+      expect(
+        section(container, `#${id}`).hasAttribute("data-resume-section"),
+      ).toBe(true);
+    }
+  });
+
+  it("updates print content when profile and explicit overrides change", () => {
+    installIntersectionObserverMock();
+    const onSelectImage = vi.fn();
+    const { container, rerender } = render(
+      <ResumeContent
+        profile={customProfile}
+        onSelectImage={onSelectImage}
+        summary={["Initial override"]}
+      />,
+    );
+    const print = section(container, ".print-resume-sections");
+    expect(print.textContent).toContain("Initial override");
+    expect(print.textContent).not.toContain("Custom summary bullet point 1");
+    rerender(
+      <ResumeContent
+        profile={{ ...customProfile, skills: ["Updated skill"] }}
+        onSelectImage={onSelectImage}
+        summary={["Updated override"]}
+      />,
+    );
+    expectUpdatedPrintContent(print, container);
+  });
+
+  it("mounts the screen target after a fragment change despite the print copy", () => {
+    installIntersectionObserverMock();
+    const { container } = render(
+      <ResumeContent profile={customProfile} onSelectImage={vi.fn()} />,
+    );
+    window.history.replaceState(null, "", "#skills");
+    act(() => {
+      window.dispatchEvent(new Event("hashchange"));
+    });
+    expect(
+      section(container, "#skills").hasAttribute("data-resume-section"),
+    ).toBe(true);
+    expect(section(container, "#skills").textContent).toContain(
+      "Distributed Systems",
+    );
+    expect(section(container, "#summary").getAttribute("aria-busy")).toBe(
+      "true",
+    );
   });
 });
