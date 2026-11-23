@@ -7,36 +7,36 @@ updates:
     groups:
       react-stack:
         patterns:
-          - 'react'
-          - 'react-dom'
+          - "react"
+          - "react-dom"
           - "@types/react"
           - "@types/react-dom"
           - "@jetbrains/ring-ui-built"
         update-types:
-          - 'major'
-          - 'minor'
-          - 'patch'
+          - "major"
+          - "minor"
+          - "patch"
       vite-tailwind:
         patterns:
-          - 'vite'
-          - 'vitest'
+          - "vite"
+          - "vitest"
           - "@vitejs/plugin-react"
           - "@tailwindcss/vite"
-          - 'tailwindcss'
+          - "tailwindcss"
         update-types:
           - major
           - minor
           - patch
       eslint-typescript:
         patterns:
-          - 'eslint'
+          - "eslint"
           - "@eslint/*"
           - "@eslint-react/*"
           - "@eslint/css"
-          - 'typescript'
-          - 'typescript-eslint'
+          - "typescript"
+          - "typescript-eslint"
           - "@typescript-eslint/*"
-          - 'globals'
+          - "globals"
         update-types:
           - major
           - minor
@@ -45,24 +45,24 @@ updates:
         patterns:
           - "*"
         exclude-patterns:
-          - 'react'
-          - 'react-dom'
+          - "react"
+          - "react-dom"
           - "@types/react"
           - "@types/react-dom"
           - "@jetbrains/ring-ui-built"
-          - 'vite'
-          - 'vitest'
+          - "vite"
+          - "vitest"
           - "@vitejs/plugin-react"
           - "@tailwindcss/vite"
-          - 'tailwindcss'
-          - 'eslint'
+          - "tailwindcss"
+          - "eslint"
           - "@eslint/*"
           - "@eslint-react/*"
           - "@eslint/css"
-          - 'typescript'
-          - 'typescript-eslint'
+          - "typescript"
+          - "typescript-eslint"
           - "@typescript-eslint/*"
-          - 'globals'
+          - "globals"
         update-types:
           - minor
           - patch
