@@ -1,0 +1,76 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      react-stack:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "@jetbrains/ring-ui-built"
+        update-types:
+          - "major"
+          - "minor"
+          - "patch"
+      vite-tailwind:
+        patterns:
+          - "vite"
+          - "vitest"
+          - "@vitejs/plugin-react"
+          - "@tailwindcss/vite"
+          - "tailwindcss"
+        update-types:
+          - major
+          - minor
+          - patch
+      eslint-typescript:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "@eslint-react/*"
+          - "@eslint/css"
+          - "typescript"
+          - "typescript-eslint"
+          - "@typescript-eslint/*"
+          - "globals"
+        update-types:
+          - major
+          - minor
+          - patch
+      minor-and-patch:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "@jetbrains/ring-ui-built"
+          - "vite"
+          - "vitest"
+          - "@vitejs/plugin-react"
+          - "@tailwindcss/vite"
+          - "tailwindcss"
+          - "eslint"
+          - "@eslint/*"
+          - "@eslint-react/*"
+          - "@eslint/css"
+          - "typescript"
+          - "typescript-eslint"
+          - "@typescript-eslint/*"
+          - "globals"
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
