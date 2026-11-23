@@ -11,7 +11,6 @@ import { Header, type HeaderProps } from "./Header";
 function createProps(overrides: Partial<HeaderProps> = {}): HeaderProps {
   return {
     name: "Nawaphon Isarathanachaikul",
-    title: "Backend Engineer",
     activeSection: "experience",
     theme: "light",
     onToggleTheme: vi.fn(),

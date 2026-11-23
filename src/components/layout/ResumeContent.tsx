@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
-import type { ZoomImage } from "../dialogs/ImageZoomDialog";
+import type { ZoomImage } from "../common/image-zoom";
 import { AboutSection, type AboutSectionProps } from "../sections/AboutSection";
 import { EducationSection } from "../sections/EducationSection";
 import { ExperienceSection } from "../sections/ExperienceSection";
@@ -99,55 +99,53 @@ export function ResumeContent({
   }, []);
 
   return (
-    <main
-      id="main-content"
-      tabIndex={-1}
-      className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8"
-    >
-      <AboutSection profile={profile} {...props} />
+    <main id="main-content" tabIndex={-1} className="resume-main">
+      <div className="resume-content">
+        <AboutSection profile={profile} {...props} />
 
-      <DeferredSection
-        sectionId="summary"
-        title="Professional summary"
-        renderAll={renderAllSections}
-      >
-        <SummarySection summary={upper.summary} />
-      </DeferredSection>
+        <DeferredSection
+          sectionId="summary"
+          title="Professional summary"
+          renderAll={renderAllSections}
+        >
+          <SummarySection summary={upper.summary} />
+        </DeferredSection>
 
-      <DeferredSection
-        sectionId="experience"
-        title="Experience timeline"
-        renderAll={renderAllSections}
-      >
-        <ExperienceSection
-          experience={upper.experience}
-          onSelectImage={onSelectImage}
-        />
-      </DeferredSection>
-
-      <DeferredSection
-        sectionId="education"
-        anchorIds={LOWER_SECTION_ANCHORS}
-        title="Education, skills, and profile"
-        renderAll={renderAllSections}
-      >
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-          <EducationSection
-            education={lower.education}
+        <DeferredSection
+          sectionId="experience"
+          title="Experience timeline"
+          renderAll={renderAllSections}
+        >
+          <ExperienceSection
+            experience={upper.experience}
             onSelectImage={onSelectImage}
           />
+        </DeferredSection>
 
-          <aside aria-label="Skills and public profile" className="space-y-6">
-            <SkillsSection skills={lower.skills} />
-
-            <ProfileSection
-              details={lower.details}
-              links={lower.links}
+        <DeferredSection
+          sectionId="education"
+          anchorIds={LOWER_SECTION_ANCHORS}
+          title="Education, skills, and profile"
+          renderAll={renderAllSections}
+        >
+          <div>
+            <EducationSection
+              education={lower.education}
               onSelectImage={onSelectImage}
             />
-          </aside>
-        </div>
-      </DeferredSection>
+
+            <aside aria-label="Skills and public profile">
+              <SkillsSection skills={lower.skills} />
+
+              <ProfileSection
+                details={lower.details}
+                links={lower.links}
+                onSelectImage={onSelectImage}
+              />
+            </aside>
+          </div>
+        </DeferredSection>
+      </div>
     </main>
   );
 }

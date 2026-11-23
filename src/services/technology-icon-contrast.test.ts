@@ -207,6 +207,7 @@ describe("enhanceTechnologyIcon", () => {
     const { enhanceTechnologyIcon } = serviceWith(() => fake.cv);
     await enhanceTechnologyIcon("light.svg", 1, 1);
     expect(fake.written[0]).toEqual([134, 141, 150, 255]);
+    expect(enhanceTechnologyIcon.surfaceFor("light.svg", 1, 1)).toBe("dark");
   });
 
   it("weights contrast by source alpha instead of counting faint pixels equally", async () => {

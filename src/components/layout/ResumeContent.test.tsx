@@ -194,6 +194,10 @@ describe("ResumeContent component", () => {
       src: "https://tech.edu/logo.png",
       alt: "Tech University logo",
       surface: "light",
+      width: customProfile.education.institutionLogo.width,
+      height: customProfile.education.institutionLogo.height,
+      origin: institutionLogoButton?.querySelector("img"),
+      activation: "keyboard",
     });
   });
 

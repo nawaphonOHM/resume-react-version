@@ -295,7 +295,7 @@ async function enhance(
   width: number,
   height: number,
   getRuntime: () => Promise<OpenCv>,
-): Promise<string> {
+): Promise<{ src: string; surface: "light" | "dark" }> {
   const cv = await getRuntime();
   const image = await loadImage(src);
   const canvas = document.createElement("canvas");
@@ -310,16 +310,18 @@ async function enhance(
   const light = evaluateCandidate(cv, context, source, [255, 255, 255]);
   const dark = evaluateCandidate(cv, context, source, [13, 27, 45]);
   const imageData = context.createImageData(width, height);
-  imageData.data.set(dark.score > light.score ? dark.pixels : light.pixels);
+  const surface = dark.score > light.score ? "dark" : "light";
+  imageData.data.set(surface === "dark" ? dark.pixels : light.pixels);
   context.putImageData(imageData, 0, 0);
   const result = canvas.toDataURL("image/png");
   if (!result.startsWith("data:image/png"))
     throw new Error("Invalid canvas output");
-  return result;
+  return { src: result, surface };
 }
 
 export function createTechnologyIconEnhancer(loader: ModuleLoader) {
   const results = new Map<string, Promise<string>>();
+  const surfaces = new Map<string, "light" | "dark">();
   let runtime: Promise<OpenCv> | undefined;
   let sequence = 0;
   const getRuntime = () => {
@@ -334,7 +336,7 @@ export function createTechnologyIconEnhancer(loader: ModuleLoader) {
     return runtime;
   };
   // eslint-disable-next-line complexity
-  return function enhanceTechnologyIcon(
+  function enhanceTechnologyIcon(
     src: string,
     width: number,
     height: number,
@@ -352,13 +354,23 @@ export function createTechnologyIconEnhancer(loader: ModuleLoader) {
     const key = JSON.stringify([src, width, height]);
     const cached = results.get(key);
     if (cached) return cached;
-    const pending = enhance(src, width, height, getRuntime).catch(() => {
-      results.delete(key);
-      return src;
-    });
+    const pending = enhance(src, width, height, getRuntime)
+      .then((result) => {
+        surfaces.set(key, result.surface);
+        return result.src;
+      })
+      .catch(() => {
+        results.delete(key);
+        surfaces.delete(key);
+        return src;
+      });
     results.set(key, pending);
     return pending;
-  };
+  }
+  return Object.assign(enhanceTechnologyIcon, {
+    surfaceFor: (src: string, width: number, height: number) =>
+      surfaces.get(JSON.stringify([src, width, height])),
+  });
 }
 
 export const enhanceTechnologyIcon = createTechnologyIconEnhancer(

@@ -13,12 +13,12 @@ export function ErrorView({
     <main
       id="main-content"
       tabIndex={-1}
-      className="mx-auto flex min-h-[60vh] max-w-7xl flex-col items-center justify-center px-4 py-16 text-center"
+      className="resume-main resume-error-page"
     >
       <div
         role="alert"
         aria-live="assertive"
-        className="mx-auto max-w-md rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-8 shadow-sm"
+        className="resume-error-card mx-auto max-w-md rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-8 shadow-sm"
       >
         <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/10 text-red-500">
           <svg

@@ -1,12 +1,19 @@
 import type { ImageAsset } from "../../resume-data";
+import { getImageZoomHandlers, type SelectZoomImage } from "./image-zoom";
 
 export interface LogoButtonProps {
   asset: ImageAsset;
   alt: string;
-  onClick: () => void;
+  onSelectImage: SelectZoomImage;
+  touchZoom?: boolean;
 }
 
-export function LogoButton({ asset, alt, onClick }: LogoButtonProps) {
+export function LogoButton({
+  asset,
+  alt,
+  onSelectImage,
+  touchZoom = true,
+}: LogoButtonProps) {
   const surfaceClass =
     asset.surface === "dark"
       ? "border-slate-800 bg-slate-950"
@@ -15,9 +22,7 @@ export function LogoButton({ asset, alt, onClick }: LogoButtonProps) {
   return (
     <button
       type="button"
-      onClick={() => {
-        onClick();
-      }}
+      {...getImageZoomHandlers({ ...asset, alt }, onSelectImage, touchZoom)}
       aria-label={`Open enlarged ${alt}`}
       className={`inline-flex min-h-20 items-center justify-center rounded-2xl border px-4 py-3 transition hover:-translate-y-0.5 hover:shadow-lg ${surfaceClass}`}
     >

@@ -5,7 +5,10 @@ import { enhanceTechnologyIcon } from "../../services/technology-icon-contrast";
 import type { TechnologyIconMetadata } from "../../data/technology-icons";
 
 vi.mock("../../services/technology-icon-contrast", () => ({
-  enhanceTechnologyIcon: vi.fn((src: string) => Promise.resolve(src)),
+  enhanceTechnologyIcon: Object.assign(
+    vi.fn((src: string) => Promise.resolve(src)),
+    { surfaceFor: vi.fn(() => "dark" as const) },
+  ),
 }));
 
 // eslint-disable-next-line max-statements
@@ -144,10 +147,20 @@ describe("TechnologyIcon", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toBe(
       "data:image/png;base64,enhanced",
     );
+    expect(
+      container
+        .querySelector(".technology-icon-frame")
+        ?.classList.contains("bg-[#071a2e]"),
+    ).toBe(true);
     fireEvent.error(container.querySelector("img") as HTMLImageElement);
     expect(container.querySelector("img")?.getAttribute("src")).toBe(
       mockLightIcon.src,
     );
+    expect(
+      container
+        .querySelector(".technology-icon-frame")
+        ?.classList.contains("bg-white"),
+    ).toBe(true);
     expect(onError).not.toHaveBeenCalled();
     fireEvent.error(container.querySelector("img") as HTMLImageElement);
     expect(onError).toHaveBeenCalledOnce();

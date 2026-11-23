@@ -46,10 +46,13 @@ The project follows a modular React + Vite architecture with a lightweight compo
 ```mermaid
 graph TD
     subgraph Entry["Application Shell & Layout"]
-        MAIN["main.tsx"] --> APP["App.tsx"]
-        APP --> HEADER["Header.tsx"]
-        APP --> CONTENT["ResumeContent.tsx"]
-        APP --> FOOTER["Footer.tsx"]
+        MAIN["main.tsx"] --> ROUTER["BrowserRouter"]
+        ROUTER --> APP["App.tsx: shared theme + routes"]
+        APP --> RESUME["ResumePage.tsx"]
+        APP --> VIDEO["VideoPage.tsx"]
+        RESUME --> HEADER["Header.tsx"]
+        RESUME --> CONTENT["ResumeContent.tsx"]
+        RESUME --> FOOTER["Footer.tsx"]
         MAIN --> RING["Ring UI global styles"]
         MAIN --> TAILWIND["index.css + Tailwind CSS"]
     end
@@ -61,15 +64,15 @@ graph TD
         CONTENT --> EDUCATION["EducationSection.tsx"]
         CONTENT --> SKILLS["SkillsSection.tsx"]
         CONTENT --> PROFILE["ProfileSection.tsx"]
-        APP --> ZOOM["ImageZoomDialog.tsx"]
-        APP --> PDF_DIALOG["DownloadConfirmDialog.tsx"]
+        RESUME --> ZOOM["ImageZoomDialog.tsx"]
+        RESUME --> PDF_DIALOG["DownloadConfirmDialog.tsx"]
     end
 
     subgraph Hooks["Domain Custom Hooks"]
         APP --> HOOK_THEME["useTheme"]
-        APP --> HOOK_ACTIVE["useActiveSection"]
-        APP --> HOOK_CLOCK["useBangkokClock"]
-        APP --> HOOK_DOWNLOAD["useResumeDownload"]
+        RESUME --> HOOK_ACTIVE["useActiveSection"]
+        RESUME --> HOOK_CLOCK["useBangkokClock"]
+        RESUME --> HOOK_DOWNLOAD["useResumeDownload"]
         ZOOM & PDF_DIALOG --> HOOK_TRAP["useDialogFocusTrap"]
     end
 
@@ -94,9 +97,9 @@ graph TD
     end
 ```
 
-- **Application Shell:** `src/main.tsx` mounts the React application with a defensive DOM root check and imports shared Ring UI and Tailwind-driven global styles.
-- **Composition Root:** `src/App.tsx` serves as a clean composition root delegating state and presentation to domain hooks and layout containers.
-- **Modular UI Components:** `src/components/` organizes components into structural layout (`Header`, `Footer`, `ResumeContent`), modular sections (`AboutSection`, `SummarySection`, `ExperienceSection`, `EducationSection`, `SkillsSection`, `ProfileSection`), accessible modal overlays (`DownloadConfirmDialog`, `ImageZoomDialog`), and common controls (`LogoButton`).
+- **Application Shell:** `src/main.tsx` mounts the React application under `BrowserRouter` with a defensive DOM root check and imports shared Ring UI and Tailwind-driven global styles.
+- **Route Composition:** `src/App.tsx` keeps theme state shared and routes `/` to `ResumePage.tsx`; unmatched paths render the themed `VideoPage.tsx`. Résumé-specific hooks only mount on the résumé route.
+- **Modular UI Components:** `src/components/` organizes components into structural layout (`Header`, `Footer`, `ResumeContent`), modular sections (`AboutSection`, `SummarySection`, `ExperienceSection`, `EducationSection`, `SkillsSection`, `ProfileSection`), an accessible PDF confirmation dialog, anchored image previews, and common controls (`LogoButton`).
 - **Custom Domain Hooks:** `src/hooks/` isolates browser and application behaviors into reusable hooks (`useTheme`, `useBangkokClock`, `useActiveSection`, `useDialogFocusTrap`, `useResumeDownload`).
 - **Typed Canonical Data:** `src/resume-data.ts` defines the résumé contracts, section registry, and publishable résumé content used throughout the app.
 - **Availability & Favicon Logic:** `src/status.ts` resolves Bangkok-time availability states and maps them to dynamic favicon URLs and badge presentation.
@@ -128,7 +131,7 @@ To understand and maintain the implementation, familiarity with the following co
 
 ### 5. Accessibility and focus management
 
-- **Modal keyboard support:** both the zoom dialog and PDF confirmation dialog move focus into the dialog, trap focus, support Escape dismissal, and restore focus to the prior trigger on dismissal (`src/hooks/use-dialog-focus-trap.ts`).
+- **Keyboard support:** image previews remain anchored to their triggers and dismiss with Escape without moving focus; the PDF confirmation dialog traps focus and restores it on dismissal (`src/hooks/use-dialog-focus-trap.ts`).
 - **Accessible controls:** theme, download, zoom, and close controls expose explicit labels, state, and busy feedback.
 
 ### 6. Client-side file transfer orchestration
@@ -199,6 +202,10 @@ dist/
 ```
 
 The output is host-neutral and requires no server-side rendering, but the deployed app must be able to reach the résumé API routes described above.
+
+## SPA routes and deployment
+
+The résumé is served at `/`; any unmatched path renders the themed embedded-video fallback. Production static hosts must rewrite application paths (including direct requests and refreshes on unmatched paths) to `index.html` so the client-side router can select the page. Keep existing API and static-asset routes available before applying the SPA fallback. Vite's development and preview servers provide the history fallback locally.
 
 ## Useful scripts
 

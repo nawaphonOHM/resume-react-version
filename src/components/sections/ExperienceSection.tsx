@@ -1,9 +1,10 @@
 import { useState } from "react";
 import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
+import { getImageZoomHandlers } from "../common/image-zoom";
 import { resolveTechnologyIcon } from "../../data/technology-icons";
 import { resumeData, type ResumeExperience } from "../../resume-data";
 import { TechnologyIcon } from "../common/TechnologyIcon";
-import type { ZoomImage } from "../dialogs/ImageZoomDialog";
+import type { ZoomImage } from "../common/image-zoom";
 
 export interface ExperienceSectionProps {
   experience?: readonly ResumeExperience[] | ResumeExperience[];
@@ -31,15 +32,18 @@ function TechnologyChip({ technology, onSelectImage }: TechnologyChipProps) {
   if (canZoom && icon) {
     return (
       <button
-        type="button"
-        aria-label={`Open enlarged ${technology} icon`}
-        onClick={() => {
-          onSelectImage({
+        {...getImageZoomHandlers(
+          {
             src: icon.src,
             alt: `${technology} icon`,
+            width: icon.width,
+            height: icon.height,
             surface: icon.surface,
-          });
-        }}
+          },
+          onSelectImage,
+        )}
+        type="button"
+        aria-label={`Open enlarged ${technology} icon`}
         className="technology-chip inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--app-heading)] transition hover:border-[color:var(--app-accent)] hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] cursor-pointer"
       >
         <TechnologyIcon
@@ -99,15 +103,15 @@ function ExperienceCard({ item, onSelectImage }: ExperienceCardProps) {
                 </span>
                 <div className="company-identity-content flex min-w-0 max-w-full items-center gap-3">
                   <button
+                    {...getImageZoomHandlers(
+                      {
+                        ...item.companyLogo,
+                        alt: `${item.company} logo`,
+                      },
+                      onSelectImage,
+                    )}
                     type="button"
                     aria-label={`Open enlarged ${item.company} logo`}
-                    onClick={() => {
-                      onSelectImage({
-                        src: item.companyLogo.src,
-                        alt: `${item.company} logo`,
-                        surface: item.companyLogo.surface,
-                      });
-                    }}
                     className={`company-logo-frame grid shrink-0 place-items-center overflow-hidden rounded-xl border border-[color:var(--app-border)] p-1.5 transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
                       item.companyLogo.surface === "dark"
                         ? "bg-[#071a2e]"
@@ -143,15 +147,15 @@ function ExperienceCard({ item, onSelectImage }: ExperienceCardProps) {
                     </span>
                     <div className="company-identity-content flex min-w-0 max-w-full items-center gap-3">
                       <button
+                        {...getImageZoomHandlers(
+                          {
+                            ...client.logo,
+                            alt: `${client.name} logo`,
+                          },
+                          onSelectImage,
+                        )}
                         type="button"
                         aria-label={`Open enlarged ${client.name} logo`}
-                        onClick={() => {
-                          onSelectImage({
-                            src: client.logo.src,
-                            alt: `${client.name} logo`,
-                            surface: client.logo.surface,
-                          });
-                        }}
                         className={`company-logo-frame grid shrink-0 place-items-center overflow-hidden rounded-xl border border-[color:var(--app-border)] p-1.5 transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer ${
                           client.logo.surface === "dark"
                             ? "bg-[#071a2e]"
@@ -253,20 +257,22 @@ export function ExperienceSection({
   return (
     <section
       id="experience"
-      className="scroll-mt-24"
+      className="scroll-mt-24 py-16 sm:py-20"
       data-resume-section
       aria-labelledby="experience-title"
     >
-      <div className="section-heading mb-8">
-        <p className="section-kicker text-sm font-semibold uppercase tracking-[0.22em] text-[var(--app-accent)]">
-          Employment
-        </p>
-        <h2
-          id="experience-title"
-          className="mt-2 text-3xl font-semibold text-[var(--app-heading)] sm:text-4xl"
-        >
-          Experience timeline
-        </h2>
+      <div className="section-heading section-heading--split mb-8 grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] md:items-end">
+        <div>
+          <p className="section-kicker text-sm font-semibold uppercase tracking-[0.22em] text-[var(--app-accent)]">
+            Employment
+          </p>
+          <h2
+            id="experience-title"
+            className="mt-2 text-3xl font-semibold text-[var(--app-heading)] sm:text-4xl"
+          >
+            Experience timeline
+          </h2>
+        </div>
         <p className="section-lead mt-3 max-w-2xl text-base text-[var(--app-muted)]">
           Five roles spanning full-stack delivery, banking systems, data
           platforms, integrations, and backend services.
