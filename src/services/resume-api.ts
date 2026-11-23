@@ -180,7 +180,7 @@ async function performFetchAttempt<T>(
   }
 
   const rawJson = await parseResponseJson(response, url);
-  return unwrapApiResponse<T>(rawJson);
+  return unwrapApiResponse(rawJson) as T;
 }
 
 interface RetryCheckContext {

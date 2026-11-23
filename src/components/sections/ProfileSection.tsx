@@ -11,6 +11,7 @@ export interface ProfileSectionProps {
   details?: ResumeDetails;
   links?: readonly ResumeLink[] | ResumeLink[];
   onSelectImage: (image: ZoomImage) => void;
+  print?: boolean;
 }
 
 interface ProfileLinkCardProps {
@@ -61,15 +62,17 @@ export function ProfileSection({
   details: propsDetails,
   links: propsLinks,
   onSelectImage,
+  print = false,
 }: ProfileSectionProps) {
   const details = propsDetails ?? resumeData.details;
   const links = propsLinks ?? resumeData.links;
+  const sectionId = print ? "print-profile" : "profile";
 
   return (
     <section
-      id="profile"
-      data-resume-section
-      aria-labelledby="profile-title"
+      id={sectionId}
+      data-resume-section={print ? undefined : ""}
+      aria-labelledby={`${sectionId}-title`}
       className="scroll-mt-24 py-16 sm:py-20"
     >
       <div className="section-heading section-heading--split grid gap-3">
@@ -78,7 +81,7 @@ export function ProfileSection({
             Public details
           </p>
           <h2
-            id="profile-title"
+            id={`${sectionId}-title`}
             className="mt-2 text-3xl font-bold tracking-tight text-[var(--app-heading)]"
           >
             Profile and links

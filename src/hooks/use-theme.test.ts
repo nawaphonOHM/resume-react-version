@@ -2,6 +2,36 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTheme } from "./use-theme";
 
+function toggleTheme(result: { current: { toggleTheme: () => void } }) {
+  act(() => {
+    result.current.toggleTheme();
+  });
+}
+
+function expectThemeTransition(active: boolean) {
+  expect(
+    document.documentElement.classList.contains("theme-transitioning"),
+  ).toBe(active);
+}
+
+function verifyTransitionTimeout(result: {
+  current: { toggleTheme: () => void };
+}) {
+  toggleTheme(result);
+  expectThemeTransition(true);
+  act(() => {
+    vi.advanceTimersByTime(250);
+  });
+  expectThemeTransition(false);
+  toggleTheme(result);
+}
+
+function verifyTransitionCleanup(unmount: () => void) {
+  unmount();
+  expectThemeTransition(false);
+  expect(vi.getTimerCount()).toBe(0);
+}
+
 describe("useTheme", () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -54,31 +84,12 @@ describe("useTheme", () => {
     expect(document.documentElement.dataset.theme).toBe(result.current.theme);
   });
 
-  // eslint-disable-next-line max-statements
   it("clears the theme transition on timeout and unmount", () => {
     vi.useFakeTimers();
     try {
       const { result, unmount } = renderHook(() => useTheme());
-      act(() => {
-        result.current.toggleTheme();
-      });
-      expect(
-        document.documentElement.classList.contains("theme-transitioning"),
-      ).toBe(true);
-      act(() => {
-        vi.advanceTimersByTime(250);
-      });
-      expect(
-        document.documentElement.classList.contains("theme-transitioning"),
-      ).toBe(false);
-      act(() => {
-        result.current.toggleTheme();
-      });
-      unmount();
-      expect(
-        document.documentElement.classList.contains("theme-transitioning"),
-      ).toBe(false);
-      expect(vi.getTimerCount()).toBe(0);
+      verifyTransitionTimeout(result);
+      verifyTransitionCleanup(unmount);
     } finally {
       vi.useRealTimers();
     }

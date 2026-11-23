@@ -221,9 +221,10 @@ export function DeferredSection({
     scrollToFragmentRef.current = false;
     const target = document.getElementById(window.location.hash.slice(1));
     if (target && wrapperRef.current?.contains(target)) {
-      // DOM implementations such as jsdom may not provide scrolling.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      target.scrollIntoView?.();
+      const scrollIntoView: unknown = Reflect.get(target, "scrollIntoView");
+      if (typeof scrollIntoView === "function") {
+        scrollIntoView.call(target);
+      }
     }
   }, [shouldRender]);
 

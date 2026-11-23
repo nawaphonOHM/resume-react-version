@@ -40,14 +40,12 @@ export function isApiResponse(value: unknown): value is ApiResponse<unknown> {
  * Otherwise, the input is returned as-is for graceful fallback and backward compatibility.
  * The input is never mutated.
  *
- * @typeParam T - The expected domain data type.
  * @param response - Payload received from the network or static fallback, typed as `unknown`.
  * @returns The inner `data` payload if wrapped in an `ApiResponse`, or the input as-is.
  */
-// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters -- T selects the domain type at call sites
-export function unwrapApiResponse<T>(response: unknown): T {
+export function unwrapApiResponse(response: unknown): unknown {
   if (isApiResponse(response)) {
-    return response.data as T;
+    return response.data;
   }
-  return response as T;
+  return response;
 }

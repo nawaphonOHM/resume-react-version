@@ -10,11 +10,13 @@ export interface ExperienceSectionProps {
   experience?: readonly ResumeExperience[] | ResumeExperience[];
   items?: readonly ResumeExperience[] | ResumeExperience[];
   onSelectImage: (image: ZoomImage) => void;
+  print?: boolean;
 }
 
 interface ExperienceCardProps {
   item: ResumeExperience;
   onSelectImage: (image: ZoomImage) => void;
+  print: boolean;
 }
 
 interface TechnologyChipProps {
@@ -85,7 +87,7 @@ function LocationIcon({ className = "" }: { className?: string }) {
   );
 }
 
-function ExperienceCard({ item, onSelectImage }: ExperienceCardProps) {
+function ExperienceCard({ item, onSelectImage, print }: ExperienceCardProps) {
   const client = item.client;
   const employmentLabel = item.employmentTypes.join(" → ");
 
@@ -233,13 +235,24 @@ function ExperienceCard({ item, onSelectImage }: ExperienceCardProps) {
             aria-label={`Technologies used at ${item.company}`}
             className="mt-5 flex flex-wrap gap-2"
           >
-            {item.technologies.map((technology) => (
-              <TechnologyChip
-                key={technology}
-                technology={technology}
-                onSelectImage={onSelectImage}
-              />
-            ))}
+            {item.technologies.map((technology) =>
+              print ? (
+                <span
+                  key={technology}
+                  className="technology-chip inline-flex max-w-full items-center gap-1.5 rounded-full border border-[color:var(--app-border)] bg-[var(--app-surface-raised)] px-2.5 py-1 text-xs font-medium text-[var(--app-heading)]"
+                >
+                  <span className="technology-label min-w-0 truncate">
+                    {technology}
+                  </span>
+                </span>
+              ) : (
+                <TechnologyChip
+                  key={technology}
+                  technology={technology}
+                  onSelectImage={onSelectImage}
+                />
+              ),
+            )}
           </div>
         </div>
       </div>
@@ -251,15 +264,17 @@ export function ExperienceSection({
   experience,
   items,
   onSelectImage,
+  print = false,
 }: ExperienceSectionProps) {
   const experienceList = experience ?? items ?? resumeData.experience;
+  const sectionId = print ? "print-experience" : "experience";
 
   return (
     <section
-      id="experience"
+      id={sectionId}
       className="scroll-mt-24 py-16 sm:py-20"
-      data-resume-section
-      aria-labelledby="experience-title"
+      data-resume-section={print ? undefined : ""}
+      aria-labelledby={`${sectionId}-title`}
     >
       <div className="section-heading section-heading--split mb-8 grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] md:items-end">
         <div>
@@ -267,7 +282,7 @@ export function ExperienceSection({
             Employment
           </p>
           <h2
-            id="experience-title"
+            id={`${sectionId}-title`}
             className="mt-2 text-3xl font-semibold text-[var(--app-heading)] sm:text-4xl"
           >
             Experience timeline
@@ -286,7 +301,11 @@ export function ExperienceSection({
               <span>{index + 1}</span>
             </div>
 
-            <ExperienceCard item={item} onSelectImage={onSelectImage} />
+            <ExperienceCard
+              item={item}
+              onSelectImage={onSelectImage}
+              print={print}
+            />
           </li>
         ))}
       </ol>

@@ -43,6 +43,30 @@ function resolveProfileIdentity(profile?: ResumeProfile): HeaderIdentity {
   };
 }
 
+function isMatchingHover(current: ZoomImage | null, image: ZoomImage) {
+  return current?.origin === image.origin && current.activation === "hover";
+}
+
+function togglesExplicitZoom(current: ZoomImage | null, image: ZoomImage) {
+  const isExplicitActivation =
+    image.activation === "touch" || image.activation === "keyboard";
+  return (
+    isExplicitActivation &&
+    current?.origin === image.origin &&
+    current.activation !== "hover"
+  );
+}
+
+function resolveZoomSelection(
+  current: ZoomImage | null,
+  image: ZoomImage,
+): ZoomImage | null {
+  if (image.activation === "hover-exit") {
+    return isMatchingHover(current, image) ? null : current;
+  }
+  return togglesExplicitZoom(current, image) ? null : image;
+}
+
 interface MainContentParams {
   isLoading: boolean;
   isErrorVisible: boolean;
@@ -76,23 +100,7 @@ export function ResumePage({ theme, onToggleTheme }: ResumePageProps) {
     useFallback: false,
   });
   const selectZoomImage = useCallback((image: ZoomImage) => {
-    // eslint-disable-next-line complexity
-    setZoomImage((current) => {
-      if (image.activation === "hover-exit") {
-        return current?.origin === image.origin &&
-          current.activation === "hover"
-          ? null
-          : current;
-      }
-      if (
-        (image.activation === "touch" || image.activation === "keyboard") &&
-        current?.origin === image.origin &&
-        current.activation !== "hover"
-      ) {
-        return null;
-      }
-      return image;
-    });
+    setZoomImage((current) => resolveZoomSelection(current, image));
   }, []);
   const closeZoomImage = useCallback(() => {
     setZoomImage(null);

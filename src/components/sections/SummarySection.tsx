@@ -4,17 +4,23 @@ import { resumeData } from "../../resume-data";
 export interface SummarySectionProps {
   summary?: readonly string[] | string[];
   items?: readonly string[] | string[];
+  print?: boolean;
 }
 
-export function SummarySection({ summary, items }: SummarySectionProps = {}) {
+export function SummarySection({
+  summary,
+  items,
+  print = false,
+}: SummarySectionProps = {}) {
   const summaryList = summary ?? items ?? resumeData.summary;
+  const sectionId = print ? "print-summary" : "summary";
 
   return (
     <section
-      id="summary"
-      data-resume-section
+      id={sectionId}
+      data-resume-section={print ? undefined : ""}
       className="scroll-mt-24 py-16 sm:py-20"
-      aria-labelledby="summary-title"
+      aria-labelledby={`${sectionId}-title`}
     >
       <div className="section-heading section-heading--split grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)] md:items-end">
         <div>
@@ -22,7 +28,7 @@ export function SummarySection({ summary, items }: SummarySectionProps = {}) {
             Professional summary
           </p>
           <h2
-            id="summary-title"
+            id={`${sectionId}-title`}
             className="mt-2 text-3xl font-bold tracking-tight text-[var(--app-heading)] sm:text-4xl lg:text-5xl"
           >
             From interface to infrastructure
