@@ -15,8 +15,8 @@
   "dependencies": {
     "@jetbrains/ring-ui-built": "^7.0.0",
     "@tailwindcss/vite": "^4.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0",
     "tailwindcss": "^4.0.0"
   },
