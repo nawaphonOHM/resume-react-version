@@ -81,12 +81,7 @@ function mockResumeDataState(
 
 function render(ui: ReactNode, initialEntries: string[] = ["/"]) {
   return renderComponent(
-    <MemoryRouter
-      initialEntries={initialEntries}
-      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-    >
-      {ui}
-    </MemoryRouter>,
+    <MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>,
   );
 }
 
