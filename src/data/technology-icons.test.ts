@@ -2,38 +2,39 @@ import { describe, expect, it } from "vitest";
 import {
   TECHNOLOGY_ICON_FALLBACK_LABELS,
   TECHNOLOGY_ICONS,
-  imageAssetBaseUrl,
   resolveTechnologyIcon,
 } from "./technology-icons";
-import { resumeData } from "../resume-data";
+import { resumeProfile } from "../test-fixtures/resume-profile";
+
+const asset = (fileName: string) => `https://ohm-mho.space/assets/${fileName}`;
 
 describe("technology icons registry", () => {
   const expectedIconPaths = {
-    Codex: `${imageAssetBaseUrl}/technology-icons/openai.svg`,
-    "Claude Code": `${imageAssetBaseUrl}/technology-icons/claude-code.svg`,
-    MySQL: `${imageAssetBaseUrl}/technology-icons/mysql.svg`,
-    PostgreSQL: `${imageAssetBaseUrl}/technology-icons/postgresql.svg`,
-    Elasticsearch: `${imageAssetBaseUrl}/technology-icons/elasticsearch.svg`,
-    Kubernetes: `${imageAssetBaseUrl}/technology-icons/kubernetes.svg`,
-    Kafka: `${imageAssetBaseUrl}/technology-icons/apache-kafka.svg`,
-    Redis: `${imageAssetBaseUrl}/technology-icons/redis.svg`,
-    Bash: `${imageAssetBaseUrl}/technology-icons/bash.svg`,
-    Confluence: `${imageAssetBaseUrl}/technology-icons/confluence.svg`,
-    React: `${imageAssetBaseUrl}/technology-icons/react.svg`,
-    Go: `${imageAssetBaseUrl}/technology-icons/go.svg`,
-    Gin: `${imageAssetBaseUrl}/technology-icons/gin.webp`,
-    Oracle: `${imageAssetBaseUrl}/technology-icons/oracle.svg`,
-    "Node.js": `${imageAssetBaseUrl}/technology-icons/nodejs.svg`,
-    "MongoDB via internal API": `${imageAssetBaseUrl}/technology-icons/mongodb.svg`,
-    Scala: `${imageAssetBaseUrl}/technology-icons/scala.svg`,
-    "Apache Spark": `${imageAssetBaseUrl}/technology-icons/apache-spark.svg`,
-    AWS: `${imageAssetBaseUrl}/technology-icons/aws.svg`,
-    "Spring Boot 2.7.x": `${imageAssetBaseUrl}/technology-icons/spring.svg`,
-    gRPC: `${imageAssetBaseUrl}/technology-icons/grpc.svg`,
-    GraphQL: `${imageAssetBaseUrl}/technology-icons/graphql.svg`,
-    "Angular 7.x": `${imageAssetBaseUrl}/technology-icons/angular.svg`,
-    "Spring Batch": `${imageAssetBaseUrl}/technology-icons/spring.svg`,
-    "IBM Db2": `${imageAssetBaseUrl}/technology-icons/ibm-db2.svg`,
+    Codex: asset("openai.svg"),
+    "Claude Code": asset("claude-code.svg"),
+    MySQL: asset("mysql.svg"),
+    PostgreSQL: asset("postgresql.svg"),
+    Elasticsearch: asset("elasticsearch.svg"),
+    Kubernetes: asset("kubernetes.svg"),
+    Kafka: asset("apache-kafka.svg"),
+    Redis: asset("redis.svg"),
+    Bash: asset("bash.svg"),
+    Confluence: asset("confluence.svg"),
+    React: asset("react.svg"),
+    Go: asset("go.svg"),
+    Gin: asset("gin.webp"),
+    Oracle: asset("oracle.svg"),
+    "Node.js": asset("nodejs.svg"),
+    "MongoDB via internal API": asset("mongodb.svg"),
+    Scala: asset("scala.svg"),
+    "Apache Spark": asset("apache-spark.svg"),
+    AWS: asset("aws.svg"),
+    "Spring Boot 2.7.x": asset("spring.svg"),
+    gRPC: asset("grpc.svg"),
+    GraphQL: asset("graphql.svg"),
+    "Angular 7.x": asset("angular.svg"),
+    "Spring Batch": asset("spring.svg"),
+    "IBM Db2": asset("ibm-db2.svg"),
   } as const;
 
   it("maps every branded résumé technology to validated remote metadata", () => {
@@ -48,7 +49,7 @@ describe("technology icons registry", () => {
 
     for (const icon of Object.values(TECHNOLOGY_ICONS)) {
       expect(icon.src).toMatch(
-        /^https:\/\/resume-images\.ohm-mho\.space\/technology-icons\/[a-z0-9-]+\.(?:svg|webp)$/,
+        /^https:\/\/ohm-mho\.space\/assets\/[a-z0-9-]+\.(?:svg|webp)$/,
       );
       expect(Number.isInteger(icon.width)).toBe(true);
       expect(Number.isInteger(icon.height)).toBe(true);
@@ -59,7 +60,7 @@ describe("technology icons registry", () => {
   });
 
   it("categorizes every exact résumé label without changing its string data", () => {
-    const allTechnologies = resumeData.experience.flatMap(
+    const allTechnologies = resumeProfile.experience.flatMap(
       ({ technologies }) => technologies,
     );
     const uniqueTechnologies = [...new Set(allTechnologies)];

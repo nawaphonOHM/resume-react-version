@@ -1,15 +1,15 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   calculateHeroCodePosition,
   calculateStatusLuminance,
   gcd,
-  getAvailabilityBadgeClass,
-  getAvailabilityDotClass,
-  getAvailabilityLabel,
   getAvailabilityStatus,
   getFaviconUrlForStatus,
+  getHeroCodeAngularFrequency,
   getStatusColor,
+  HERO_CLOCK_TRANSITIONS,
+  pickHeroClockTransition,
   STATUS_COLORS,
   syncFavicon,
   type AvailabilityStatus,
@@ -110,34 +110,6 @@ describe("getAvailabilityStatus", () => {
 });
 
 describe("status presentation mappings", () => {
-  it("maps availability statuses to descriptive labels", () => {
-    expect(getAvailabilityLabel("available")).toBe(
-      "Available in Bangkok business hours",
-    );
-    expect(getAvailabilityLabel("limited")).toBe(
-      "Limited availability in Bangkok",
-    );
-    expect(getAvailabilityLabel("unavailable")).toBe(
-      "Currently offline in Bangkok",
-    );
-  });
-
-  it("maps availability statuses to badge CSS classes", () => {
-    expect(getAvailabilityBadgeClass("available")).toContain(
-      "bg-emerald-500/12",
-    );
-    expect(getAvailabilityBadgeClass("limited")).toContain("bg-amber-500/12");
-    expect(getAvailabilityBadgeClass("unavailable")).toContain(
-      "bg-slate-500/12",
-    );
-  });
-
-  it("maps availability statuses to dot CSS classes", () => {
-    expect(getAvailabilityDotClass("available")).toContain("bg-emerald-500");
-    expect(getAvailabilityDotClass("limited")).toContain("bg-amber-500");
-    expect(getAvailabilityDotClass("unavailable")).toContain("bg-slate-400");
-  });
-
   it("maps availability statuses to exact status color hex strings", () => {
     expect(STATUS_COLORS.available).toBe("#92C353");
     expect(STATUS_COLORS.limited).toBe("#F7A600");
@@ -148,6 +120,31 @@ describe("status presentation mappings", () => {
     expect(getStatusColor("available")).toBe("#92C353");
     expect(getStatusColor("limited")).toBe("#F7A600");
     expect(getStatusColor("unavailable")).toBe("#D1D1D1");
+  });
+});
+
+describe("hero clock transitions", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("offers the three reference transitions", () => {
+    expect(HERO_CLOCK_TRANSITIONS).toEqual([
+      "slide-fade",
+      "opacity-pulse",
+      "soft-glow",
+    ]);
+  });
+
+  it("maps the random source onto the three transitions", () => {
+    const random = vi.spyOn(Math, "random");
+
+    random.mockReturnValue(0);
+    expect(pickHeroClockTransition()).toBe("slide-fade");
+    random.mockReturnValue(0.5);
+    expect(pickHeroClockTransition()).toBe("opacity-pulse");
+    random.mockReturnValue(0.999);
+    expect(pickHeroClockTransition()).toBe("soft-glow");
   });
 });
 
@@ -171,19 +168,70 @@ describe("mathematical and asset helpers", () => {
       calculateStatusLuminance(0, { amplitude: 0.25, phi: 0 }),
     ).toBeCloseTo(0.75);
   });
+});
 
+describe("hero code orbit", () => {
   it("calculates 2D orbital coordinates for hero code tokens", () => {
-    const pos = calculateHeroCodePosition(0);
+    const pos = calculateHeroCodePosition(0, { omega: 0.15 });
     expect(pos.left.x).toBeCloseTo(37);
     expect(pos.left.y).toBeCloseTo(0);
     expect(pos.right.x).toBeCloseTo(50);
     expect(pos.right.y).toBeCloseTo(0);
 
-    const customPos = calculateHeroCodePosition(0, { rLeft: 40, rRight: 60 });
+    const customPos = calculateHeroCodePosition(0, {
+      omega: 0.15,
+      rLeft: 40,
+      rRight: 60,
+    });
     expect(customPos.left.x).toBeCloseTo(40);
     expect(customPos.right.x).toBeCloseTo(60);
   });
 
+  it("advances the right badge by omega and the left badge by the radius ratio", () => {
+    const omega = Math.PI / 2;
+    const pos = calculateHeroCodePosition(1, { omega });
+
+    expect(pos.right.x).toBeCloseTo(0);
+    expect(pos.right.y).toBeCloseTo(50);
+    expect(pos.left.x).toBeCloseTo(37 * Math.cos(omega * (50 / 37)));
+    expect(pos.left.y).toBeCloseTo(37 * Math.sin(omega * (50 / 37)));
+  });
+
+  it("repeats hero code positions after one shared orbital period", () => {
+    const omega = 0.2;
+    const period = (2 * Math.PI * 37) / omega;
+    const start = calculateHeroCodePosition(12.5, { omega });
+    const later = calculateHeroCodePosition(12.5 + period, { omega });
+
+    expect(later.left.x).toBeCloseTo(start.left.x);
+    expect(later.left.y).toBeCloseTo(start.left.y);
+    expect(later.right.x).toBeCloseTo(start.right.x);
+    expect(later.right.y).toBeCloseTo(start.right.y);
+  });
+
+  it("keeps the badges still when the angular frequency is zero", () => {
+    const pos = calculateHeroCodePosition(1_800_000_000, { omega: 0 });
+
+    expect(pos.left).toEqual({ x: 37, y: 0 });
+    expect(pos.right).toEqual({ x: 50, y: 0 });
+  });
+
+  it("derives the orbit frequency from the UTC+7 day of month per hour", () => {
+    // 2026-11-30 17:00:00 UTC is 2026-12-01 00:00:00 in UTC+7.
+    const firstOfMonth = new Date("2026-11-30T17:00:00.000Z");
+    // One second earlier is still the 30th in UTC+7.
+    const thirtieth = new Date("2026-11-30T16:59:59.000Z");
+
+    expect(getHeroCodeAngularFrequency(firstOfMonth)).toBeCloseTo(
+      (2 * Math.PI * 1) / 3600,
+    );
+    expect(getHeroCodeAngularFrequency(thirtieth)).toBeCloseTo(
+      (2 * Math.PI * 30) / 3600,
+    );
+  });
+});
+
+describe("favicon helpers", () => {
   it("maps availability statuses to favicon asset URLs", () => {
     const statuses: AvailabilityStatus[] = [
       "available",
@@ -191,8 +239,10 @@ describe("mathematical and asset helpers", () => {
       "unavailable",
     ];
     for (const status of statuses) {
-      expect(getFaviconUrlForStatus(status)).toContain(
-        `/favicons/${status}/favicon.svg`,
+      expect(getFaviconUrlForStatus(status)).toBe(
+        `https://ohm-mho.space/assets/favicon.svg?${encodeURIComponent(
+          JSON.stringify({ status }),
+        )}`,
       );
     }
   });
@@ -204,7 +254,11 @@ describe("mathematical and asset helpers", () => {
   });
 
   it("updates existing favicon link element when document is present", () => {
-    const mockLink = { href: "", rel: "" } as unknown as HTMLLinkElement;
+    const mockLink = {
+      href: "",
+      rel: "",
+      type: "",
+    } as unknown as HTMLLinkElement;
     const mockDocument = {
       head: {
         querySelector: () => mockLink,
@@ -222,7 +276,11 @@ describe("mathematical and asset helpers", () => {
 
   it("creates and appends favicon link element when not already present", () => {
     let appendedElement: HTMLLinkElement | null = null;
-    const newLink = { href: "", rel: "" } as unknown as HTMLLinkElement;
+    const newLink = {
+      href: "",
+      rel: "",
+      type: "",
+    } as unknown as HTMLLinkElement;
     const mockDocument = {
       head: {
         querySelector: () => null,
@@ -238,6 +296,7 @@ describe("mathematical and asset helpers", () => {
       syncFavicon(testUrl);
       expect(appendedElement).toBe(newLink);
       expect(newLink.rel).toBe("icon");
+      expect(newLink.type).toBe("image/svg+xml");
       expect(newLink.href).toBe(testUrl);
     });
   });

@@ -1,6 +1,9 @@
+import { assetUrls } from "./data/asset-urls";
+
 export type AvailabilityStatus = "available" | "limited" | "unavailable";
 
 const SECONDS_PER_HOUR = 60 * 60;
+const UTC_PLUS_SEVEN_OFFSET_MS = 7 * SECONDS_PER_HOUR * 1000;
 const weekdayMap: Record<string, number> = {
   Sun: 0,
   Mon: 1,
@@ -19,14 +22,6 @@ const bangkokPartsFormatter = new Intl.DateTimeFormat("en-US", {
   second: "2-digit",
   hour12: false,
 });
-
-const faviconUrls: Record<AvailabilityStatus, string> = {
-  available:
-    "https://resume-images.ohm-mho.space/favicons/available/favicon.svg",
-  limited: "https://resume-images.ohm-mho.space/favicons/limited/favicon.svg",
-  unavailable:
-    "https://resume-images.ohm-mho.space/favicons/unavailable/favicon.svg",
-};
 
 interface BangkokTime {
   dayOfWeek: number;
@@ -82,39 +77,6 @@ export function getAvailabilityStatus(instant: Date): AvailabilityStatus {
   }
 
   return getWeekdayStatus(secondsSinceMidnight);
-}
-
-export function getAvailabilityLabel(status: AvailabilityStatus): string {
-  switch (status) {
-    case "available":
-      return "Available in Bangkok business hours";
-    case "limited":
-      return "Limited availability in Bangkok";
-    default:
-      return "Currently offline in Bangkok";
-  }
-}
-
-export function getAvailabilityBadgeClass(status: AvailabilityStatus): string {
-  switch (status) {
-    case "available":
-      return "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300";
-    case "limited":
-      return "bg-amber-500/12 text-amber-700 dark:text-amber-300";
-    default:
-      return "bg-slate-500/12 text-slate-700 dark:text-slate-300";
-  }
-}
-
-export function getAvailabilityDotClass(status: AvailabilityStatus): string {
-  switch (status) {
-    case "available":
-      return "bg-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.55)]";
-    case "limited":
-      return "bg-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.45)]";
-    default:
-      return "bg-slate-400 shadow-[0_0_14px_rgba(148,163,184,0.35)]";
-  }
 }
 
 export const STATUS_COLORS: Record<AvailabilityStatus, string> = {
@@ -175,15 +137,14 @@ export interface HeroCodeOrbitPositions {
 }
 
 export interface HeroCodePositionOptions {
-  omega?: number;
+  omega: number;
   phiLeft?: number;
   phiRight?: number;
   rLeft?: number;
   rRight?: number;
 }
 
-const DEFAULT_HERO_CODE_OPTIONS: Required<HeroCodePositionOptions> = {
-  omega: 0.15,
+const DEFAULT_HERO_CODE_OPTIONS = {
   phiLeft: 0,
   phiRight: 0,
   rLeft: 37,
@@ -203,11 +164,22 @@ function getOrbitalPeriod(
 }
 
 /**
+ * Angular frequency of the hero code orbit: the UTC+7 day of month, in
+ * revolutions per hour, expressed in radians per second.
+ */
+export function getHeroCodeAngularFrequency(instant: Date): number {
+  const dayOfMonth = new Date(
+    instant.getTime() + UTC_PLUS_SEVEN_OFFSET_MS,
+  ).getUTCDate();
+  return (2 * Math.PI * dayOfMonth) / SECONDS_PER_HOUR;
+}
+
+/**
  * Calculates continuous 2D circular orbital positions for hero code badges.
  */
 export function calculateHeroCodePosition(
   elapsedSeconds: number,
-  options?: HeroCodePositionOptions,
+  options: HeroCodePositionOptions,
 ): HeroCodeOrbitPositions {
   const opts = { ...DEFAULT_HERO_CODE_OPTIONS, ...options };
   const period = getOrbitalPeriod(opts.omega, opts.rLeft, opts.rRight);
@@ -228,8 +200,22 @@ export function calculateHeroCodePosition(
   };
 }
 
+export const HERO_CLOCK_TRANSITIONS = [
+  "slide-fade",
+  "opacity-pulse",
+  "soft-glow",
+] as const;
+
+export type HeroClockTransition = (typeof HERO_CLOCK_TRANSITIONS)[number];
+
+export function pickHeroClockTransition(): HeroClockTransition {
+  return HERO_CLOCK_TRANSITIONS[
+    Math.floor(Math.random() * HERO_CLOCK_TRANSITIONS.length)
+  ];
+}
+
 export function getFaviconUrlForStatus(status: AvailabilityStatus): string {
-  return faviconUrls[status];
+  return assetUrls.favicon(status);
 }
 
 export function syncFavicon(url: string): void {
@@ -237,12 +223,14 @@ export function syncFavicon(url: string): void {
     return;
   }
 
-  let faviconLink =
-    document.head.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  let faviconLink = document.head.querySelector<HTMLLinkElement>(
+    'link[rel="icon"], link[rel~="icon"]',
+  );
 
   if (!faviconLink) {
     faviconLink = document.createElement("link");
     faviconLink.rel = "icon";
+    faviconLink.type = "image/svg+xml";
     document.head.append(faviconLink);
   }
 

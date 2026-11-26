@@ -1,10 +1,23 @@
 import { selectBestCandidate } from "./technology-icon-contrast-processing";
 
 const OPEN_CV_URL = "https://cdn.jsdelivr.net/npm/@techstark/opencv-js/+esm";
-const LOAD_TIMEOUT_MS = 10_000;
+const LOAD_TIMEOUT_MS = 15_000;
 const IMAGE_TIMEOUT_MS = 10_000;
 const RETRY_DELAY_MS = 1_000;
 const MAX_ATTEMPTS = 4;
+
+export type TechnologyIconBackground = "#ffffff" | "#0d1b2d";
+
+export interface TechnologyIconPresentation {
+  src: string;
+  background: TechnologyIconBackground;
+}
+
+const SURFACE_BACKGROUNDS: Record<"light" | "dark", TechnologyIconBackground> =
+  {
+    light: "#ffffff",
+    dark: "#0d1b2d",
+  };
 
 export interface Disposable {
   delete?: () => void;
@@ -231,7 +244,7 @@ async function enhance({
   width,
   height,
   getRuntime,
-}: EnhancementRequest): Promise<{ src: string; surface: "light" | "dark" }> {
+}: EnhancementRequest): Promise<TechnologyIconPresentation> {
   const cv = await getRuntime();
   const image = await loadImage(src);
   const { canvas, context } = createEnhancementCanvas(image, width, height);
@@ -239,7 +252,7 @@ async function enhance({
   const candidate = selectBestCandidate(cv, context, source);
   return {
     src: writeCanvasResult(canvas, context, candidate),
-    surface: candidate.surface,
+    background: SURFACE_BACKGROUNDS[candidate.surface],
   };
 }
 
@@ -257,8 +270,7 @@ function hasValidDimensions(width: number, height: number): boolean {
 }
 
 export function createTechnologyIconEnhancer(loader: ModuleLoader) {
-  const results = new Map<string, Promise<string>>();
-  const surfaces = new Map<string, "light" | "dark">();
+  const results = new Map<string, Promise<TechnologyIconPresentation>>();
   let runtime: Promise<OpenCv> | undefined;
   let sequence = 0;
   const getRuntime = () => {
@@ -273,34 +285,28 @@ export function createTechnologyIconEnhancer(loader: ModuleLoader) {
     return runtime;
   };
 
-  function enhanceTechnologyIcon(
+  return function enhanceTechnologyIcon(
     src: string,
     width: number,
     height: number,
-  ): Promise<string> {
+  ): Promise<TechnologyIconPresentation> {
+    const fallback: TechnologyIconPresentation = {
+      src,
+      background: SURFACE_BACKGROUNDS.light,
+    };
     if (!hasBrowserEnvironment() || !hasValidDimensions(width, height)) {
-      return Promise.resolve(src);
+      return Promise.resolve(fallback);
     }
     const key = JSON.stringify([src, width, height]);
     const cached = results.get(key);
     if (cached) return cached;
-    const pending = enhance({ src, width, height, getRuntime })
-      .then((result) => {
-        surfaces.set(key, result.surface);
-        return result.src;
-      })
-      .catch(() => {
-        results.delete(key);
-        surfaces.delete(key);
-        return src;
-      });
+    const pending = enhance({ src, width, height, getRuntime }).catch(() => {
+      results.delete(key);
+      return fallback;
+    });
     results.set(key, pending);
     return pending;
-  }
-  return Object.assign(enhanceTechnologyIcon, {
-    surfaceFor: (src: string, width: number, height: number) =>
-      surfaces.get(JSON.stringify([src, width, height])),
-  });
+  };
 }
 
 export const enhanceTechnologyIcon = createTechnologyIconEnhancer(

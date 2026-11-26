@@ -1,27 +1,33 @@
-import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ErrorView } from "./ErrorView";
 
+afterEach(() => {
+  cleanup();
+});
+
 describe("ErrorView component", () => {
-  it("renders error alert with default message", () => {
+  it("renders the error panel with the default message and no icon", () => {
     const { container } = render(<ErrorView onRetry={vi.fn()} />);
 
-    expect(container.querySelector('[role="alert"]')).not.toBeNull();
-    expect(container.textContent).toContain("Unable to load resume");
-    expect(container.textContent).toContain(
+    const alert = screen.getByRole("alert");
+    expect(alert.getAttribute("aria-live")).toBe("assertive");
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Unable to load resume" }),
+    ).not.toBeNull();
+    expect(alert.textContent).toContain(
       "An error occurred while loading the resume data. Please try again.",
     );
+    expect(container.querySelector("svg")).toBeNull();
+    expect(container.querySelector("main")).toBeNull();
   });
 
   it("triggers onRetry callback when retry button is clicked", () => {
     const handleRetry = vi.fn();
-    const { container } = render(<ErrorView onRetry={handleRetry} />);
+    render(<ErrorView onRetry={handleRetry} />);
 
-    const retryButton = container.querySelector("button");
-    expect(retryButton?.textContent).toContain("Retry");
-    if (retryButton) {
-      fireEvent.click(retryButton);
-    }
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
     expect(handleRetry).toHaveBeenCalledTimes(1);
   });
 

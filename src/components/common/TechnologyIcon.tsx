@@ -1,39 +1,58 @@
 import { useEffect, useState } from "react";
+import Icon from "@jetbrains/ring-ui-built/components/icon/icon";
+import LoaderInline from "@jetbrains/ring-ui-built/components/loader-inline/loader-inline";
 import type { TechnologyIconMetadata } from "../../data/technology-icons";
-import { enhanceTechnologyIcon } from "../../services/technology-icon-contrast";
+import { useImageZoom } from "../../hooks/use-image-zoom";
+import type { ImageAsset } from "../../resume-data";
+import {
+  enhanceTechnologyIcon,
+  type TechnologyIconBackground,
+  type TechnologyIconPresentation,
+} from "../../services/technology-icon-contrast";
+import { codeIcon, resizeIcon } from "./material-icons";
 
 export interface TechnologyIconProps {
   icon?: TechnologyIconMetadata | null;
   label: string;
   className?: string;
-  onError?: () => void;
 }
 
-export function CodeFallbackIcon({ className = "" }: { className?: string }) {
+interface EnhancedIcon extends TechnologyIconPresentation {
+  key: string;
+}
+
+interface IconPresentation {
+  logo: ImageAsset;
+  background: TechnologyIconBackground;
+}
+
+interface BrandIconProps {
+  presentation: IconPresentation;
+  label: string;
+  className: string;
+  onError: () => void;
+}
+
+const CONTAINER_CLASS =
+  "technology-icon-container inline-grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-[0.3rem]";
+const DARK_BACKGROUND: TechnologyIconBackground = "#0d1b2d";
+const FALLBACK_ICON_SIZE = 18;
+const fallbackGlyph = resizeIcon(codeIcon, FALLBACK_ICON_SIZE);
+
+function FallbackIcon({ className }: { className: string }) {
   return (
-    <svg
-      className={`technology-fallback-icon h-[1.1rem] w-[1.1rem] text-[var(--app-muted)] ${className}`}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-      />
-    </svg>
+    <span className={`${CONTAINER_CLASS} ${className}`} aria-hidden="true">
+      <span className="technology-fallback-icon inline-flex text-muted">
+        <Icon glyph={fallbackGlyph} />
+      </span>
+    </span>
   );
 }
 
-function useEnhancedIcon(icon: TechnologyIconMetadata | null | undefined) {
-  const [enhanced, setEnhanced] = useState<{
-    key: string;
-    src: string;
-    surface?: "light" | "dark";
-  } | null>(null);
+function useEnhancedIcon(
+  icon: TechnologyIconMetadata | null | undefined,
+): EnhancedIcon | null {
+  const [enhanced, setEnhanced] = useState<EnhancedIcon | null>(null);
   const src = icon?.src;
   const width = icon?.width;
   const height = icon?.height;
@@ -46,12 +65,8 @@ function useEnhancedIcon(icon: TechnologyIconMetadata | null | undefined) {
     let active = true;
     void enhanceTechnologyIcon(src, width, height)
       .then((result) => {
-        if (active && result !== src) {
-          setEnhanced({
-            key,
-            src: result,
-            surface: enhanceTechnologyIcon.surfaceFor(src, width, height),
-          });
+        if (active && result.src !== src) {
+          setEnhanced({ key, ...result });
         }
       })
       .catch(() => {
@@ -62,94 +77,104 @@ function useEnhancedIcon(icon: TechnologyIconMetadata | null | undefined) {
     };
   }, [src, width, height, key]);
 
-  return { enhanced, key };
+  return enhanced?.key === key ? enhanced : null;
 }
 
-function chooseIconSource({
-  original,
-  key,
-  enhanced,
-  failed,
-}: {
-  original: string;
-  key: string;
-  enhanced: { key: string; src: string } | null;
-  failed: string | null;
-}): string {
-  return enhanced?.key === key && failed !== enhanced.src
-    ? enhanced.src
-    : original;
+function choosePresentation(
+  icon: TechnologyIconMetadata,
+  enhanced: EnhancedIcon | null,
+): IconPresentation {
+  if (!enhanced) {
+    return { logo: icon, background: "#ffffff" };
+  }
+
+  return {
+    logo: {
+      src: enhanced.src,
+      width: icon.width,
+      height: icon.height,
+      surface: enhanced.background === DARK_BACKGROUND ? "dark" : "light",
+    },
+    background: enhanced.background,
+  };
 }
 
-function chooseIconSurface({
-  icon,
-  displayedSrc,
-  key,
-  enhanced,
-}: {
-  icon: TechnologyIconMetadata;
-  displayedSrc: string;
-  key: string;
-  enhanced: { key: string; surface?: "light" | "dark" } | null;
-}) {
-  return displayedSrc !== icon.src && enhanced?.key === key
-    ? (enhanced.surface ?? icon.surface)
-    : icon.surface;
+function BrandIcon({
+  presentation,
+  label,
+  className,
+  onError,
+}: BrandIconProps) {
+  const { logo, background } = presentation;
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  const zoom = useImageZoom({ logo, label, background });
+  const isLoading = loadedSrc !== logo.src;
+  const tone = background === DARK_BACKGROUND ? "dark" : "light";
+
+  return (
+    <span
+      className={`${CONTAINER_CLASS} technology-icon-frame technology-icon-frame--${tone} border border-solid border-outline p-px ${className}`}
+      style={{ backgroundColor: background }}
+      aria-hidden="true"
+    >
+      {isLoading && (
+        <span className="technology-icon-loader col-start-1 row-start-1">
+          <LoaderInline />
+        </span>
+      )}
+      <img
+        {...zoom}
+        src={logo.src}
+        alt=""
+        width={logo.width}
+        height={logo.height}
+        loading="lazy"
+        className={`technology-brand-icon col-start-1 row-start-1 block h-full w-full object-contain${isLoading ? " invisible" : ""}`}
+        onLoad={() => {
+          zoom.onLoad();
+          setLoadedSrc(logo.src);
+        }}
+        onError={() => {
+          zoom.onError();
+          onError();
+        }}
+        data-label={label}
+      />
+    </span>
+  );
 }
 
 export function TechnologyIcon({
   icon,
   label,
   className = "",
-  onError,
 }: TechnologyIconProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [failedEnhancement, setFailedEnhancement] = useState<string | null>(
     null,
   );
-  const { enhanced, key } = useEnhancedIcon(icon);
+  const enhanced = useEnhancedIcon(icon);
+
   if (!icon || failedSrc === icon.src) {
-    return (
-      <span
-        className={`technology-icon-container inline-grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-[0.3rem] ${className}`}
-        aria-hidden="true"
-      >
-        <CodeFallbackIcon />
-      </span>
-    );
+    return <FallbackIcon className={className} />;
   }
 
-  const displayedSrc = chooseIconSource({
-    original: icon.src,
-    key,
-    enhanced,
-    failed: failedEnhancement,
-  });
-  const surface = chooseIconSurface({ icon, displayedSrc, key, enhanced });
-  const surfaceClass = surface === "dark" ? "bg-[#071a2e]" : "bg-white";
+  const usableEnhancement =
+    enhanced && enhanced.src !== failedEnhancement ? enhanced : null;
+  const presentation = choosePresentation(icon, usableEnhancement);
 
   return (
-    <span
-      className={`technology-icon-container technology-icon-frame inline-grid h-5 w-5 shrink-0 place-items-center overflow-hidden rounded-[0.3rem] border border-[color:var(--app-border)] p-px ${surfaceClass} ${className}`}
-      aria-hidden="true"
-    >
-      <img
-        src={displayedSrc}
-        alt=""
-        width={icon.width}
-        height={icon.height}
-        loading="lazy"
-        className="technology-brand-icon block h-full w-full object-contain"
-        onError={() => {
-          if (displayedSrc !== icon.src) {
-            setFailedEnhancement(displayedSrc);
-          } else {
-            setFailedSrc(icon.src);
-            onError?.();
-          }
-        }}
-        data-label={label}
-      />
-    </span>
+    <BrandIcon
+      presentation={presentation}
+      label={label}
+      className={className}
+      onError={() => {
+        if (usableEnhancement) {
+          setFailedEnhancement(usableEnhancement.src);
+        } else {
+          setFailedSrc(icon.src);
+        }
+      }}
+    />
   );
 }

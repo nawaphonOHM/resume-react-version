@@ -28,11 +28,13 @@ describe("useResumeDownload", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows checking and available states", async () => {
+  it("uses the plain labels while checking and once available", async () => {
     const check = deferred<boolean>();
     vi.mocked(checkResumePdfAvailability).mockReturnValue(check.promise);
     const { result } = renderHook(() => useResumeDownload());
-    expect(result.current.downloadControlText).toBe("Download PDF (checking)");
+    expect(result.current.downloadAvailable).toBeNull();
+    expect(result.current.downloadControlText).toBe("Download PDF");
+    expect(result.current.downloadControlLabel).toBe("Download résumé as PDF");
     await act(async () => {
       check.resolve(true);
       await check.promise;
@@ -111,7 +113,7 @@ describe("useResumeDownload", () => {
     expect(result.current.downloadProgress).toBeNull();
   });
 
-  it("surfaces failure and clears it on a confirmed retry", async () => {
+  it("logs a failure and recovers on a confirmed retry", async () => {
     const error = new Error("network error");
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(checkResumePdfAvailability).mockResolvedValue(true);
@@ -125,18 +127,15 @@ describe("useResumeDownload", () => {
     async function expectFailureAndRequestRetry() {
       await act(async () => result.current.handleDownloadRequest());
       expect(result.current.downloadAvailable).toBe(false);
-      expect(result.current.downloadError).toBe(error);
+      expect(result.current).not.toHaveProperty("downloadError");
       expect(result.current.downloadPending).toBe(false);
-      expect(console.error).toHaveBeenCalledWith(error);
+      expect(console.error).toHaveBeenCalledExactlyOnceWith(error);
       await act(async () => result.current.handleDownloadRequest());
       expect(result.current.confirmDownloadOpen).toBe(true);
     }
     await expectFailureAndRequestRetry();
     await act(async () => result.current.startResumeDownload());
-    expect(result.current).toMatchObject({
-      downloadError: null,
-      downloadAvailable: true,
-    });
+    expect(result.current.downloadAvailable).toBe(true);
   });
 
   it("ignores a late availability result after a download starts", async () => {

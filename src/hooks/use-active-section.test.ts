@@ -1,140 +1,79 @@
-import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ResumeSectionId } from "../resume-data";
 import { useActiveSection } from "./use-active-section";
 
-class TestIntersectionObserver implements IntersectionObserver {
-  static instances: TestIntersectionObserver[] = [];
+const VIEWPORT_HEIGHT = 1000;
+const THROTTLE_MS = 100;
 
-  readonly root = null;
-  readonly rootMargin: string;
-  readonly scrollMargin = "0px";
-  readonly thresholds: readonly number[];
-  readonly observedTargets: Element[] = [];
-  readonly unobservedTargets: Element[] = [];
-  readonly callback: IntersectionObserverCallback;
+type SectionRanges = Partial<Record<ResumeSectionId, [number, number]>>;
 
-  constructor(
-    callback: IntersectionObserverCallback,
-    options?: IntersectionObserverInit,
-  ) {
-    this.callback = callback;
-    this.rootMargin = options?.rootMargin ?? "0px";
-    this.thresholds = Array.isArray(options?.threshold)
-      ? options.threshold
-      : [options?.threshold ?? 0];
-    TestIntersectionObserver.instances.push(this);
-  }
-
-  observe(target: Element): void {
-    this.observedTargets.push(target);
-  }
-
-  unobserve(target: Element): void {
-    this.unobservedTargets.push(target);
-    const index = this.observedTargets.indexOf(target);
-    if (index >= 0) {
-      this.observedTargets.splice(index, 1);
-    }
-  }
-
-  disconnect(): void {}
-
-  takeRecords(): IntersectionObserverEntry[] {
-    return [];
-  }
-
-  intersect(target: Element): void {
-    const entry = {
-      target,
-      isIntersecting: true,
-      intersectionRatio: 1,
-      boundingClientRect: {} as DOMRectReadOnly,
-      intersectionRect: {} as DOMRectReadOnly,
-      rootBounds: null,
-      time: 0,
-    } satisfies IntersectionObserverEntry;
-    this.callback([entry], this);
+function removeSections() {
+  for (const section of document.querySelectorAll("section")) {
+    section.remove();
   }
 }
 
-function prepareTestObserver() {
-  TestIntersectionObserver.instances = [];
-  vi.stubGlobal("IntersectionObserver", TestIntersectionObserver);
+function placeSections(ranges: SectionRanges) {
+  removeSections();
+
+  for (const [id, range] of Object.entries(ranges)) {
+    const [top, bottom] = range;
+    const section = document.createElement("section");
+    section.id = id;
+    vi.spyOn(section, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, top, 800, bottom - top),
+    );
+    document.body.append(section);
+  }
 }
 
-function getTestObserver() {
-  const observer = TestIntersectionObserver.instances.at(0);
-  if (!observer) throw new Error("IntersectionObserver was not created");
-  return observer;
-}
-
-async function appendObservedSection(
-  observer: TestIntersectionObserver,
-  id: string,
-) {
-  const section = document.createElement("section");
-  section.id = id;
-  section.setAttribute("data-resume-section", "");
-  document.body.append(section);
-  await waitFor(() => {
-    expect(observer.observedTargets).toContain(section);
-  });
-  return section;
-}
-
-async function replaceObservedSection(
-  observer: TestIntersectionObserver,
-  section: HTMLElement,
-) {
-  const replacement = document.createElement("section");
-  replacement.id = section.id;
-  replacement.setAttribute("data-resume-section", "");
-  section.replaceWith(replacement);
-  await waitFor(() => {
-    expect(observer.unobservedTargets).toContain(section);
-    expect(observer.observedTargets).toContain(replacement);
-  });
-  return replacement;
-}
-
-function intersectSection(
-  observer: TestIntersectionObserver,
-  section: Element,
-) {
+function dispatchViewportEvent(type: "scroll" | "resize") {
   act(() => {
-    observer.intersect(section);
+    window.dispatchEvent(new Event(type));
   });
 }
 
-function verifyStaleEntryHandling({
-  observer,
-  placeholder,
-  replacement,
-  result,
-}: {
-  observer: TestIntersectionObserver;
-  placeholder: Element;
-  replacement: HTMLElement;
-  result: { current: { activeSection: string } };
-}) {
+function advance(milliseconds: number) {
   act(() => {
-    window.location.hash = "#summary";
+    vi.advanceTimersByTime(milliseconds);
+  });
+}
+
+function scrollTo(ranges: SectionRanges) {
+  placeSections(ranges);
+  dispatchViewportEvent("scroll");
+  advance(THROTTLE_MS);
+}
+
+function changeHash(hash: string) {
+  act(() => {
+    window.location.hash = hash;
     window.dispatchEvent(new Event("hashchange"));
-    observer.intersect(placeholder);
   });
-  expect(result.current.activeSection).toBe("summary");
-  intersectSection(observer, replacement);
-  expect(result.current.activeSection).toBe("experience");
-  replacement.remove();
 }
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.stubGlobal("innerHeight", VIEWPORT_HEIGHT);
+});
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+  removeSections();
   window.history.replaceState(null, "", "/");
 });
 
-describe("useActiveSection", () => {
+describe("useActiveSection fragments", () => {
+  it("starts on the about section", () => {
+    const { result } = renderHook(() => useActiveSection());
+
+    expect(result.current.activeSection).toBe("about");
+  });
+
   it("initializes from the current section fragment", () => {
     window.history.replaceState(null, "", "/#skills");
 
@@ -143,25 +82,97 @@ describe("useActiveSection", () => {
     expect(result.current.activeSection).toBe("skills");
   });
 
-  it("updates the active section when the URL fragment changes", () => {
+  it("follows fragment changes that name a section", () => {
     const { result } = renderHook(() => useActiveSection());
 
-    act(() => {
-      window.location.hash = "#experience";
-      window.dispatchEvent(new Event("hashchange"));
-    });
+    changeHash("#experience");
+    expect(result.current.activeSection).toBe("experience");
 
+    changeHash("#main-content");
+    expect(result.current.activeSection).toBe("experience");
+  });
+});
+
+describe("useActiveSection scanline", () => {
+  it("selects the section crossing the line at 18 % of the viewport", () => {
+    const { result } = renderHook(() => useActiveSection());
+
+    scrollTo({ about: [-700, 179], experience: [179, 2400] });
+    expect(result.current.activeSection).toBe("experience");
+
+    scrollTo({ about: [-700, 181], experience: [181, 2400] });
+    expect(result.current.activeSection).toBe("about");
+  });
+
+  it("falls back to the nearest visible section above or below the line", () => {
+    const { result } = renderHook(() => useActiveSection());
+
+    scrollTo({ education: [-400, 120], skills: [260, 700] });
+    expect(result.current.activeSection).toBe("skills");
+
+    scrollTo({ education: [150, 170], skills: [500, 900] });
+    expect(result.current.activeSection).toBe("education");
+  });
+
+  it("ignores sections outside the viewport and keeps the last selection", () => {
+    const { result } = renderHook(() => useActiveSection());
+
+    scrollTo({ profile: [400, 900] });
+    expect(result.current.activeSection).toBe("profile");
+
+    scrollTo({ about: [-900, 0], experience: [VIEWPORT_HEIGHT, 3000] });
+    expect(result.current.activeSection).toBe("profile");
+  });
+
+  it("picks up sections that replace their placeholders", () => {
+    const { result } = renderHook(() => useActiveSection());
+
+    scrollTo({ about: [100, 300] });
+    expect(result.current.activeSection).toBe("about");
+
+    scrollTo({ about: [-600, 100], experience: [100, 2600] });
+    expect(result.current.activeSection).toBe("experience");
+  });
+});
+
+describe("useActiveSection viewport events", () => {
+  it("throttles scroll and resize updates to one per 100 ms", () => {
+    const { result } = renderHook(() => useActiveSection());
+    placeSections({ experience: [0, 900] });
+
+    dispatchViewportEvent("scroll");
+    dispatchViewportEvent("resize");
+    dispatchViewportEvent("scroll");
+    expect(vi.getTimerCount()).toBe(1);
+
+    advance(THROTTLE_MS - 1);
+    expect(result.current.activeSection).toBe("about");
+
+    advance(1);
     expect(result.current.activeSection).toBe("experience");
   });
 
-  it("observes sections inserted later and ignores replaced section entries", async () => {
-    prepareTestObserver();
+  it("updates on resize", () => {
     const { result } = renderHook(() => useActiveSection());
-    const observer = getTestObserver();
-    const placeholder = await appendObservedSection(observer, "experience");
-    intersectSection(observer, placeholder);
-    expect(result.current.activeSection).toBe("experience");
-    const replacement = await replaceObservedSection(observer, placeholder);
-    verifyStaleEntryHandling({ observer, placeholder, replacement, result });
+    placeSections({ skills: [0, 900] });
+
+    dispatchViewportEvent("resize");
+    advance(THROTTLE_MS);
+
+    expect(result.current.activeSection).toBe("skills");
+  });
+
+  it("removes its listeners and pending timer on unmount", () => {
+    const { result, unmount } = renderHook(() => useActiveSection());
+    placeSections({ profile: [0, 900] });
+    dispatchViewportEvent("scroll");
+
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+
+    window.dispatchEvent(new Event("scroll"));
+    window.dispatchEvent(new Event("resize"));
+    expect(vi.getTimerCount()).toBe(0);
+    expect(result.current.activeSection).toBe("about");
   });
 });

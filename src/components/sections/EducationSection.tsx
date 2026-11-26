@@ -1,37 +1,130 @@
-import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
-import { resumeData, type ResumeEducation } from "../../resume-data";
-import { LogoButton } from "../common/LogoButton";
-import type { ZoomImage } from "../common/image-zoom";
+import Button from "@jetbrains/ring-ui-built/components/button/button";
+import { ControlsHeight } from "@jetbrains/ring-ui-built/components/global/controls-height";
+import Icon from "@jetbrains/ring-ui-built/components/icon/icon";
+import Island from "@jetbrains/ring-ui-built/components/island/island";
+import { useImageZoom } from "../../hooks/use-image-zoom";
+import { type ImageAsset, type ResumeEducation } from "../../resume-data";
+import {
+  openInNewIcon,
+  resizeIcon,
+  schoolIcon,
+} from "../common/material-icons";
 
 export interface EducationSectionProps {
-  education?: ResumeEducation;
-  onSelectImage: (image: ZoomImage) => void;
-  print?: boolean;
+  education: ResumeEducation;
 }
 
-export function EducationSection({
-  education: propsEducation,
-  onSelectImage,
-  print = false,
-}: EducationSectionProps) {
-  const education = propsEducation ?? resumeData.education;
-  const institutionLogoAlt = `${education.institution} logo`;
-  const sectionId = print ? "print-education" : "education";
+interface InstitutionLogoProps {
+  logo: ImageAsset;
+  institution: string;
+}
+
+const SCHOOL_ICON_SIZE = 26;
+const LINK_ICON_SIZE = 18;
+const schoolGlyph = resizeIcon(schoolIcon, SCHOOL_ICON_SIZE);
+const openInNewGlyph = resizeIcon(openInNewIcon, LINK_ICON_SIZE);
+
+function InstitutionLogo({ logo, institution }: InstitutionLogoProps) {
+  const zoom = useImageZoom({ logo, label: institution });
 
   return (
-    <section
-      id={sectionId}
-      data-resume-section={print ? undefined : ""}
-      aria-labelledby={`${sectionId}-title`}
-      className="scroll-mt-24 py-16 sm:py-20"
+    <span
+      className={`institution-logo-frame institution-logo-frame--${logo.surface} grid h-14 w-32 shrink-0 place-items-center overflow-hidden rounded-2xl border border-solid border-outline p-2 max-[30rem]:h-12 max-[30rem]:w-26`}
+      aria-hidden="true"
     >
-      <div className="section-heading section-heading--split">
+      <img
+        {...zoom}
+        className="institution-logo block h-full w-full object-contain"
+        src={logo.src}
+        width={logo.width}
+        height={logo.height}
+        loading="lazy"
+        alt=""
+      />
+    </span>
+  );
+}
+
+function EducationOverview({ education }: EducationSectionProps) {
+  return (
+    <div className="education-overview">
+      <div className="institution-identity flex min-w-0 items-center gap-[clamp(1rem,3vw,1.5rem)] max-[30rem]:flex-col max-[30rem]:items-start">
+        <InstitutionLogo
+          logo={education.institutionLogo}
+          institution={education.institution}
+        />
+
+        <span
+          className="education-icon education-icon--print"
+          aria-hidden="true"
+        >
+          <Icon glyph={schoolGlyph} />
+        </span>
+
+        <div className="degree-copy">
+          <h3 className="degree-title">{education.degree}</h3>
+          <p className="institution">{education.institution}</p>
+        </div>
+      </div>
+
+      <dl className="education-metadata" aria-label="Degree details">
+        <div>
+          <dt>Study period</dt>
+          <dd>{education.period}</dd>
+        </div>
+        <div>
+          <dt>GPAX</dt>
+          <dd>{education.gpax}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function SeniorProject({ education }: EducationSectionProps) {
+  const { name, url } = education.seniorProject;
+
+  return (
+    <div className="senior-project">
+      <div>
+        <p className="project-title">
+          <span>Senior project:</span> {name}
+        </p>
+        <p className="project-description">
+          Academic capstone project repository
+        </p>
+      </div>
+
+      <span className="project-link">
+        <Button
+          transparent
+          inline={false}
+          height={ControlsHeight.L}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`View source code for ${name} (opens in a new tab)`}
+          icon={openInNewGlyph}
+        >
+          View source code
+        </Button>
+      </span>
+    </div>
+  );
+}
+
+export function EducationSection({ education }: EducationSectionProps) {
+  return (
+    <section
+      id="education"
+      className="education-section scroll-mt-24 py-16 sm:py-20"
+      data-resume-section=""
+      aria-labelledby="education-title"
+    >
+      <div className="section-heading">
         <div>
           <p className="section-kicker">Academic background</p>
-          <h2
-            id={`${sectionId}-title`}
-            className="text-3xl font-semibold text-[var(--app-heading)] sm:text-4xl"
-          >
+          <h2 id="education-title" className="section-title">
             Education
           </h2>
         </div>
@@ -41,58 +134,17 @@ export function EducationSection({
         </p>
       </div>
 
-      <Panel className="education-card mt-10 rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 shadow-sm sm:p-8">
-        <div className="flex flex-wrap items-center justify-between gap-6">
-          <div className="flex flex-wrap items-center gap-6">
-            <LogoButton
-              asset={education.institutionLogo}
-              alt={institutionLogoAlt}
-              onSelectImage={onSelectImage}
-            />
-            <div>
-              <h3 className="text-2xl font-semibold text-[var(--app-heading)]">
-                {education.degree}
-              </h3>
-              <p className="mt-2 text-lg font-medium text-[var(--app-heading)]">
-                {education.institution}
-              </p>
-            </div>
+      <div className="education-card mt-10">
+        <Island>
+          <div className="education-card-content">
+            <EducationOverview education={education} />
+
+            <hr className="card-divider" />
+
+            <SeniorProject education={education} />
           </div>
-          <dl aria-label="Degree details" className="flex flex-wrap gap-6">
-            <div>
-              <dt className="text-sm text-[var(--app-muted)]">Study period</dt>
-              <dd className="font-semibold text-[var(--app-heading)]">
-                {education.period}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-sm text-[var(--app-muted)]">GPAX</dt>
-              <dd className="font-semibold text-[var(--app-heading)]">
-                {education.gpax}
-              </dd>
-            </div>
-          </dl>
-        </div>
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border-t border-[color:var(--app-border)] pt-6">
-          <div>
-            <p className="font-semibold text-[var(--app-heading)]">
-              Senior project: {education.seniorProject.name}
-            </p>
-            <p className="text-sm text-[var(--app-muted)]">
-              Academic capstone project repository
-            </p>
-          </div>
-          <a
-            href={education.seniorProject.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`View source code for ${education.seniorProject.name} (opens in a new tab)`}
-            className="rounded-xl border border-[color:var(--app-border)] px-4 py-2 font-semibold text-[var(--app-accent)] hover:underline"
-          >
-            View source code ↗
-          </a>
-        </div>
-      </Panel>
+        </Island>
+      </div>
     </section>
   );
 }

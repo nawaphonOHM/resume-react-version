@@ -6,7 +6,6 @@ type ResumeDownload = {
   downloadAvailable: boolean | null;
   downloadPending: boolean;
   downloadProgress: number | null;
-  downloadError?: unknown;
   confirmDownloadOpen: boolean;
   setConfirmDownloadOpen: Dispatch<SetStateAction<boolean>>;
   downloadControlLabel: string;
@@ -37,13 +36,9 @@ function computeDownloadControlText(
   downloadProgress: number | null,
 ): string {
   if (!downloadPending) {
-    if (downloadAvailable === false) {
-      return "Download PDF (unavailable)";
-    }
-    if (downloadAvailable === null) {
-      return "Download PDF (checking)";
-    }
-    return "Download PDF";
+    return downloadAvailable === false
+      ? "Download PDF (unavailable)"
+      : "Download PDF";
   }
 
   return typeof downloadProgress === "number"
@@ -107,7 +102,6 @@ export function useResumeDownload(): ResumeDownload {
   );
   const [downloadPending, setDownloadPending] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
-  const [downloadError, setDownloadError] = useState<unknown>(null);
   const [confirmDownloadOpen, setConfirmDownloadOpen] = useState(false);
   const { mountedRef, pendingRef, availabilityCheckRef } =
     useDownloadLifecycle(setDownloadAvailable);
@@ -137,7 +131,6 @@ export function useResumeDownload(): ResumeDownload {
     availabilityCheckRef.current?.abort();
     setDownloadPending(true);
     setDownloadProgress(null);
-    setDownloadError(null);
 
     await performResumeDownload({
       onProgress: (progress) => {
@@ -153,7 +146,6 @@ export function useResumeDownload(): ResumeDownload {
       onError: (error) => {
         if (mountedRef.current) {
           setDownloadAvailable(false);
-          setDownloadError(error);
         }
         console.error(error);
       },
@@ -184,7 +176,6 @@ export function useResumeDownload(): ResumeDownload {
     downloadAvailable,
     downloadPending,
     downloadProgress,
-    downloadError,
     confirmDownloadOpen,
     setConfirmDownloadOpen,
     downloadControlLabel,

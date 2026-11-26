@@ -1,58 +1,44 @@
-import Panel from "@jetbrains/ring-ui-built/components/panel/panel";
-import { resumeData } from "../../resume-data";
+import Tag from "@jetbrains/ring-ui-built/components/tag/tag";
 
 export interface SkillsSectionProps {
-  skills?: readonly string[] | string[];
-  print?: boolean;
+  skills: readonly string[];
 }
 
-export function SkillsSection({
-  skills: propsSkills,
-  print = false,
-}: SkillsSectionProps = {}) {
-  const skills = propsSkills ?? resumeData.skills;
-  const sectionId = print ? "print-skills" : "skills";
-
+export function SkillsSection({ skills }: SkillsSectionProps) {
   return (
     <section
-      id={sectionId}
-      data-resume-section={print ? undefined : ""}
-      aria-labelledby={`${sectionId}-title`}
-      className="scroll-mt-24 py-16 sm:py-20"
+      id="skills"
+      className="skills-section scroll-mt-24 py-16 sm:py-20"
+      data-resume-section=""
+      aria-labelledby="skills-title"
     >
-      <Panel className="skills-panel overflow-hidden rounded-3xl border-0 bg-[#0b2847] p-0 text-white shadow-lg">
-        <div className="skills-panel-content grid gap-6 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:items-center">
+      <div className="skills-panel">
+        <div className="skills-panel-content">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-200 sm:text-sm">
+            <p className="section-kicker section-kicker-light">
               Technical toolkit
             </p>
-            <h2
-              id={`${sectionId}-title`}
-              className="mt-2 text-3xl font-bold tracking-tight text-white"
-            >
+            <h2 id="skills-title" className="section-title">
               Core skills
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-200">
-              {skills.length}{" "}
-              {skills.length === 1 ? "technology" : "technologies"} highlighted
-              in the résumé.
+            <p className="skills-lead">
+              Six technologies highlighted in the original résumé.
             </p>
           </div>
-          <ul
+
+          <div
+            className="chip-set"
+            role="group"
             aria-label="Core technical skills"
-            className="m-0 flex list-none flex-wrap gap-2 p-0"
           >
             {skills.map((skill) => (
-              <li
-                key={skill}
-                className="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium text-white"
-              >
-                {skill}
-              </li>
+              <Tag key={skill} readOnly interactive={false} outline>
+                <span className="chip-label">{skill}</span>
+              </Tag>
             ))}
-          </ul>
+          </div>
         </div>
-      </Panel>
+      </div>
     </section>
   );
 }

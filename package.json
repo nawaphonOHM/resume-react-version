@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@jetbrains/ring-ui-built": "^7.0.0",
+    "@material-design-icons/svg": "^0.14.15",
     "@tailwindcss/vite": "^4.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

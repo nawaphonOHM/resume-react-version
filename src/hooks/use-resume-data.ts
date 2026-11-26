@@ -12,17 +12,15 @@ import {
 } from "../services/resume-api";
 import {
   PUBLIC_PHONE_LABEL,
-  resumeData as defaultResumeData,
   type ResumeDetails,
   type ResumeEducation,
   type ResumeExperience,
   type ResumeLink,
   type ResumeProfile,
 } from "../resume-data";
+import { normalizeProjectLogo } from "../data/project-logos";
 
 export interface UseResumeDataOptions extends ResumeApiOptions {
-  readonly fallbackData?: ResumeProfile | null;
-  readonly useFallback?: boolean;
   readonly autoFetch?: boolean;
 }
 
@@ -30,7 +28,6 @@ export interface UseResumeDataResult {
   readonly profile: ResumeProfile | undefined;
   readonly isLoading: boolean;
   readonly hasError: boolean;
-  readonly isFallback: boolean;
   readonly error: unknown;
   readonly progress: number;
   readonly reloadAll: () => void;
@@ -46,7 +43,6 @@ export interface ResumeDataState {
   readonly profile: ResumeProfile | undefined;
   readonly isLoading: boolean;
   readonly hasError: boolean;
-  readonly isFallback: boolean;
   readonly error: unknown;
   readonly progress: number;
 }
@@ -55,7 +51,7 @@ export type ResumeDataAction =
   | { type: "START_FETCH" }
   | { type: "PROGRESS"; count: number }
   | { type: "SUCCESS"; profile: ResumeProfile }
-  | { type: "ERROR"; error: unknown; fallbackProfile?: ResumeProfile };
+  | { type: "ERROR"; error: unknown };
 
 export function resumeDataReducer(
   state: ResumeDataState,
@@ -67,7 +63,6 @@ export function resumeDataReducer(
         profile: undefined,
         isLoading: true,
         hasError: false,
-        isFallback: false,
         error: undefined,
         progress: 0,
       };
@@ -81,16 +76,14 @@ export function resumeDataReducer(
         profile: action.profile,
         isLoading: false,
         hasError: false,
-        isFallback: false,
         error: undefined,
         progress: 100,
       };
     case "ERROR":
       return {
-        profile: action.fallbackProfile,
+        profile: undefined,
         isLoading: false,
-        hasError: action.fallbackProfile === undefined,
-        isFallback: action.fallbackProfile !== undefined,
+        hasError: true,
         error: action.error,
         progress: state.progress,
       };
@@ -104,7 +97,6 @@ export function initialResumeDataState(autoFetch?: boolean): ResumeDataState {
     profile: undefined,
     isLoading: autoFetch !== false,
     hasError: false,
-    isFallback: false,
     error: undefined,
     progress: 0,
   };
@@ -180,23 +172,48 @@ export function buildAggregatedProfile(
     title,
     summary: [...summary],
     details: { ...details, phoneLabel: PUBLIC_PHONE_LABEL },
-    links: [...links],
+    links: links.map(normalizeResumeLink),
     skills: [...skills],
-    experience: [...experience],
-    education,
+    experience: experience.map(normalizeResumeExperience),
+    education: normalizeResumeEducation(education),
   };
 }
 
-export function resolveFallbackProfile(
-  options: UseResumeDataOptions,
-): ResumeProfile | undefined {
-  if (options.fallbackData === null || options.useFallback === false) {
-    return undefined;
+function normalizeResumeLink(link: ResumeLink): ResumeLink {
+  if (!link.logo) {
+    return link;
   }
-  if (options.fallbackData !== undefined) {
-    return options.fallbackData;
+  const logo = normalizeProjectLogo(link.logo);
+  return logo === link.logo ? link : { ...link, logo };
+}
+
+function normalizeClientCompany(
+  client: ResumeExperience["client"],
+): ResumeExperience["client"] {
+  if (!client) {
+    return client;
   }
-  return options.useFallback === true ? defaultResumeData : undefined;
+  const logo = normalizeProjectLogo(client.logo);
+  return logo === client.logo ? client : { ...client, logo };
+}
+
+function normalizeResumeExperience(
+  experience: ResumeExperience,
+): ResumeExperience {
+  const companyLogo = normalizeProjectLogo(experience.companyLogo);
+  const client = normalizeClientCompany(experience.client);
+
+  if (companyLogo === experience.companyLogo && client === experience.client) {
+    return experience;
+  }
+  return { ...experience, companyLogo, ...(client ? { client } : {}) };
+}
+
+function normalizeResumeEducation(education: ResumeEducation): ResumeEducation {
+  const institutionLogo = normalizeProjectLogo(education.institutionLogo);
+  return institutionLogo === education.institutionLogo
+    ? education
+    : { ...education, institutionLogo };
 }
 
 export async function fetchAllResources(
@@ -276,12 +293,10 @@ export function useResumeData(
           return;
         }
         if (firstError !== undefined || !resolvedProfile) {
-          const fallback = resolveFallbackProfile(optionsRef.current);
           dispatch({
             type: "ERROR",
             error:
               firstError ?? new Error("Failed to load resume profile data"),
-            fallbackProfile: fallback,
           });
           return;
         }
@@ -291,11 +306,9 @@ export function useResumeData(
         if (abortController.signal.aborted) {
           return;
         }
-        const fallback = resolveFallbackProfile(optionsRef.current);
         dispatch({
           type: "ERROR",
           error: firstError ?? err,
-          fallbackProfile: fallback,
         });
       });
 
@@ -308,7 +321,6 @@ export function useResumeData(
     profile: state.profile,
     isLoading: state.isLoading,
     hasError: state.hasError,
-    isFallback: state.isFallback,
     error: state.error,
     progress: state.progress,
     reloadAll,

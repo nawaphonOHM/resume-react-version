@@ -12,7 +12,6 @@
   overflow: hidden;
   border: 1px solid rgb(148 163 184 / 45%);
   border-radius: 0.875rem;
-  pointer-events: none;
   opacity: 1;
   box-shadow: 0 1rem 3rem rgb(8 35 62 / 24%);
   transform: scale(1);
@@ -30,8 +29,17 @@
   background: #071a2e;
 }
 
+/* Hover previews must never sit between the pointer and the page. */
+.image-zoom-preview--pointer-transparent {
+  pointer-events: none;
+}
+
+/* Intrinsic containment keeps the panel size stable while the image decodes. */
 .image-zoom-preview__image {
   display: block;
+  contain: size;
+  contain-intrinsic-size: var(--image-zoom-intrinsic-width)
+    var(--image-zoom-intrinsic-height);
   width: auto;
   height: auto;
   max-width: var(--image-zoom-image-max-width, min(20vw, calc(100vw - 3.5rem)));
@@ -58,6 +66,6 @@
 
 @media print {
   .image-zoom-preview {
-    display: none !important;
+    display: none;
   }
 }

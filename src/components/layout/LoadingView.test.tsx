@@ -1,34 +1,40 @@
-import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { LoadingView } from "./LoadingView";
 
+afterEach(() => {
+  cleanup();
+});
+
 describe("LoadingView component", () => {
-  it("renders progressbar with correct accessibility attributes", () => {
-    const { container } = render(<LoadingView progress={50} />);
+  it("announces loading with a labelled progress bar", () => {
+    render(<LoadingView progress={50} />);
 
-    expect(container.querySelector('[role="status"]')).not.toBeNull();
-    const progressbar = container.querySelector('[role="progressbar"]');
-    expect(progressbar).not.toBeNull();
-    expect(progressbar?.getAttribute("aria-valuenow")).toBe("50");
-    expect(progressbar?.getAttribute("aria-valuemin")).toBe("0");
-    expect(progressbar?.getAttribute("aria-valuemax")).toBe("100");
-    expect(progressbar?.getAttribute("aria-label")).toBe("Loading resume data");
+    const status = screen.getByRole("status");
+    expect(status.getAttribute("aria-busy")).toBe("true");
+    expect(status.getAttribute("aria-live")).toBe("polite");
+
+    const progressbar = screen.getByRole("progressbar", {
+      name: "Loading resume data",
+    });
+    expect(progressbar.getAttribute("aria-valuenow")).toBe("50");
+    expect(progressbar.getAttribute("aria-valuemin")).toBe("0");
+    expect(progressbar.getAttribute("aria-valuemax")).toBe("100");
+    expect(progressbar.style.width).toBe("50%");
   });
 
-  it("rounds floating percentage values for display", () => {
-    const { container } = render(<LoadingView progress={12.5} />);
+  it("rounds fractional progress", () => {
+    render(<LoadingView progress={12.5} />);
 
-    const progressbar = container.querySelector('[role="progressbar"]');
-    expect(progressbar?.getAttribute("aria-valuenow")).toBe("13");
-    expect(container.textContent).toContain("Loading resume data...");
-    expect(container.textContent).toContain("13% completed");
+    const progressbar = screen.getByRole("progressbar");
+    expect(progressbar.getAttribute("aria-valuenow")).toBe("13");
+    expect(progressbar.style.width).toBe("13%");
   });
 
-  it("renders 100% completed correctly", () => {
+  it("shows only the loading text", () => {
     const { container } = render(<LoadingView progress={100} />);
 
-    const progressbar = container.querySelector('[role="progressbar"]');
-    expect(progressbar?.getAttribute("aria-valuenow")).toBe("100");
-    expect(container.textContent).toContain("100% completed");
+    expect(container.textContent).toBe("Loading resume data...");
+    expect(container.querySelector("main")).toBeNull();
   });
 });

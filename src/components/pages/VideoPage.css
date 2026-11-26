@@ -1,22 +1,35 @@
+/* The fallback page may be narrower than the résumé's minimum page width. */
+html:has(.video-page),
+body:has(.video-page) {
+  min-width: 0;
+}
+
 .video-page {
   box-sizing: border-box;
   display: grid;
+  /* Keep the legacy viewport unit as a fallback for browsers without small viewport units. */
   min-height: 100vh;
-  min-height: 100svh;
   align-items: center;
   padding: clamp(1.25rem, 5vw, 4rem);
-  background-color: var(--app-bg);
-  color: var(--app-text);
+  background-color: var(--resume-page);
+  color: var(--resume-text);
+}
+
+@supports (min-height: 100svh) {
+  .video-page {
+    min-height: 100svh;
+  }
 }
 
 .video-page__content {
+  min-width: 0;
   width: min(100%, 72rem);
   margin-inline: auto;
   padding: clamp(1.25rem, 4vw, 3rem);
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--resume-border);
   border-radius: 1.5rem;
-  background-color: var(--app-surface);
-  box-shadow: 0 1rem 2.5rem rgb(15 23 42 / 12%);
+  background-color: var(--resume-surface);
+  box-shadow: var(--resume-shadow);
 }
 
 .video-page__content h1 {
@@ -26,22 +39,23 @@
 }
 
 .video-page__content p {
-  color: var(--app-muted);
+  color: var(--resume-muted);
   line-height: 1.6;
 }
 
+/* The frame height is set from the measured width; it collapses without a player. */
 .video-page__frame {
   overflow: hidden;
+  min-width: 0;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  max-width: 100%;
   border-radius: 0.875rem;
   background-color: #000;
 }
 
 .video-page__frame iframe {
   display: block;
-  width: 100%;
-  height: 100%;
+  max-width: 100%;
   border: 0;
 }
 
@@ -50,7 +64,7 @@
 }
 
 .video-page__content a {
-  color: var(--app-text);
+  color: var(--resume-text);
   font-weight: 600;
   text-decoration: underline;
   text-decoration-thickness: 0.1em;

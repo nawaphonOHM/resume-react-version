@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  getAvailabilityLabel,
   getAvailabilityStatus,
   getFaviconUrlForStatus,
   syncFavicon,
 } from "../status";
+
+const CLOCK_UPDATE_INTERVAL_MS = 1000;
+
+interface ClockState {
+  currentTime: Date;
+  tickCount: number;
+}
 
 function formatBangkokDate(date: Date): string {
   const parts: Record<string, string> = Object.fromEntries(
@@ -26,23 +32,20 @@ function formatBangkokDate(date: Date): string {
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
-function getBangkokHour(date: Date): number {
-  return Number(
-    new Intl.DateTimeFormat("en-GB", {
-      hour: "2-digit",
-      hour12: false,
-      timeZone: "Asia/Bangkok",
-    }).format(date),
-  );
-}
-
 export function useBangkokClock() {
-  const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [clock, setClock] = useState<ClockState>(() => ({
+    currentTime: new Date(),
+    tickCount: 0,
+  }));
+  const { currentTime, tickCount } = clock;
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+      setClock((previous) => ({
+        currentTime: new Date(),
+        tickCount: previous.tickCount + 1,
+      }));
+    }, CLOCK_UPDATE_INTERVAL_MS);
 
     return () => {
       window.clearInterval(timer);
@@ -53,14 +56,9 @@ export function useBangkokClock() {
     () => formatBangkokDate(currentTime),
     [currentTime],
   );
-  const bangkokHour = useMemo(() => getBangkokHour(currentTime), [currentTime]);
   const availabilityStatus = useMemo(
     () => getAvailabilityStatus(currentTime),
     [currentTime],
-  );
-  const availabilityLabel = useMemo(
-    () => getAvailabilityLabel(availabilityStatus),
-    [availabilityStatus],
   );
 
   useEffect(() => {
@@ -70,8 +68,7 @@ export function useBangkokClock() {
   return {
     currentTime,
     bangkokTime,
-    bangkokHour,
     availabilityStatus,
-    availabilityLabel,
+    isTickAlternate: tickCount % 2 === 1,
   };
 }
