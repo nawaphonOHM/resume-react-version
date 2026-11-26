@@ -1,17 +1,12 @@
-import { useCallback, useState } from "react";
-import type { ZoomImage } from "../common/image-zoom";
+import { useEffect, useState } from "react";
+import { ImageZoomProvider } from "../common/ImageZoomProvider";
 import { DownloadConfirmDialog } from "../dialogs/DownloadConfirmDialog";
-import { ImageZoomDialog } from "../dialogs/ImageZoomDialog";
 import { ErrorView } from "../layout/ErrorView";
 import { Footer } from "../layout/Footer";
 import { Header } from "../layout/Header";
 import { LoadingView } from "../layout/LoadingView";
-import {
-  ResumeContent,
-  type ResumeContentProps,
-} from "../layout/ResumeContent";
+import { ResumeContent } from "../layout/ResumeContent";
 import { useActiveSection } from "../../hooks/use-active-section";
-import { useBangkokClock } from "../../hooks/use-bangkok-clock";
 import { useResumeData } from "../../hooks/use-resume-data";
 import { useResumeDownload } from "../../hooks/use-resume-download";
 import type { Theme } from "../../hooks/use-theme";
@@ -43,77 +38,63 @@ function resolveProfileIdentity(profile?: ResumeProfile): HeaderIdentity {
   };
 }
 
-function isMatchingHover(current: ZoomImage | null, image: ZoomImage) {
-  return current?.origin === image.origin && current.activation === "hover";
-}
-
-function togglesExplicitZoom(current: ZoomImage | null, image: ZoomImage) {
-  const isExplicitActivation =
-    image.activation === "touch" || image.activation === "keyboard";
-  return (
-    isExplicitActivation &&
-    current?.origin === image.origin &&
-    current.activation !== "hover"
-  );
-}
-
-function resolveZoomSelection(
-  current: ZoomImage | null,
-  image: ZoomImage,
-): ZoomImage | null {
-  if (image.activation === "hover-exit") {
-    return isMatchingHover(current, image) ? null : current;
-  }
-  return togglesExplicitZoom(current, image) ? null : image;
-}
-
 interface MainContentParams {
   isLoading: boolean;
   isErrorVisible: boolean;
+  profile: ResumeProfile | undefined;
   progress: number;
   onRetry: () => void;
-  contentProps: ResumeContentProps;
+  renderAll: boolean;
+}
+
+function usePrintRenderAll(): boolean {
+  const [renderAll, setRenderAll] = useState(false);
+
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      setRenderAll(true);
+    };
+
+    window.addEventListener("beforeprint", handleBeforePrint);
+    return () => {
+      window.removeEventListener("beforeprint", handleBeforePrint);
+    };
+  }, []);
+
+  return renderAll;
 }
 
 function renderMainContent({
   isLoading,
   isErrorVisible,
+  profile,
   progress,
   onRetry,
-  contentProps,
+  renderAll,
 }: MainContentParams) {
   if (isLoading) {
     return <LoadingView progress={progress} />;
   }
-  if (isErrorVisible) {
+  if (isErrorVisible || !profile) {
     return <ErrorView onRetry={onRetry} />;
   }
-  return <ResumeContent {...contentProps} />;
+  return <ResumeContent profile={profile} renderAll={renderAll} />;
 }
 
 export function ResumePage({ theme, onToggleTheme }: ResumePageProps) {
   const { activeSection } = useActiveSection();
-  const clock = useBangkokClock();
   const download = useResumeDownload();
-  const [zoomImage, setZoomImage] = useState<ZoomImage | null>(null);
-  const { profile, isLoading, hasError, progress, reloadAll } = useResumeData({
-    useFallback: false,
-  });
-  const selectZoomImage = useCallback((image: ZoomImage) => {
-    setZoomImage((current) => resolveZoomSelection(current, image));
-  }, []);
-  const closeZoomImage = useCallback(() => {
-    setZoomImage(null);
-  }, []);
+  const renderAll = usePrintRenderAll();
+  const { profile, isLoading, hasError, progress, reloadAll } = useResumeData();
   const identity = resolveProfileIdentity(profile);
 
   return (
-    <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
+    <div className="resume-page">
       <Header
-        name={identity.name}
         activeSection={activeSection}
         theme={theme}
         onToggleTheme={onToggleTheme}
+        downloadAvailable={download.downloadAvailable}
         downloadPending={download.downloadPending}
         downloadControlLabel={download.downloadControlLabel}
         downloadControlText={download.downloadControlText}
@@ -122,29 +103,20 @@ export function ResumePage({ theme, onToggleTheme }: ResumePageProps) {
         }}
       />
 
-      {Boolean(download.downloadError) && (
-        <p
-          role="alert"
-          className="mx-auto max-w-7xl px-6 py-3 text-sm text-[var(--app-text)]"
-        >
-          The PDF download failed. Check your connection or try again later.
-        </p>
-      )}
-
-      {renderMainContent({
-        isLoading,
-        isErrorVisible: hasError && !profile,
-        progress,
-        onRetry: reloadAll,
-        contentProps: {
-          profile,
-          availabilityStatus: clock.availabilityStatus,
-          availabilityLabel: clock.availabilityLabel,
-          bangkokTime: clock.bangkokTime,
-          downloadAvailable: download.downloadAvailable,
-          onSelectImage: selectZoomImage,
-        },
-      })}
+      <main id="main-content" tabIndex={-1} className="resume-main">
+        <div className="resume-content relative z-[1] mx-auto w-full max-w-resume px-4 sm:px-6 lg:px-8">
+          <ImageZoomProvider>
+            {renderMainContent({
+              isLoading,
+              isErrorVisible: hasError,
+              profile,
+              progress,
+              onRetry: reloadAll,
+              renderAll,
+            })}
+          </ImageZoomProvider>
+        </div>
+      </main>
 
       {profile && (
         <Footer
@@ -164,8 +136,6 @@ export function ResumePage({ theme, onToggleTheme }: ResumePageProps) {
           void download.startResumeDownload();
         }}
       />
-
-      <ImageZoomDialog image={zoomImage} onClose={closeZoomImage} />
     </div>
   );
 }

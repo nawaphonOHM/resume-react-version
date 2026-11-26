@@ -4,17 +4,12 @@ import {
   fetchAllResources,
   fetchResourceItem,
   initialResumeDataState,
-  resolveFallbackProfile,
   resumeDataReducer,
   type FetchProgressContext,
   type ResumeDataState,
 } from "./use-resume-data";
-import {
-  resumeData as defaultResumeData,
-  type ResumeEducation,
-  type ResumeExperience,
-  type ResumeProfile,
-} from "../resume-data";
+import type { ResumeEducation, ResumeExperience } from "../resume-data";
+import { resumeProfile as defaultResumeData } from "../test-fixtures/resume-profile";
 
 const mockExperience: ResumeExperience = {
   role: "Developer",
@@ -46,17 +41,15 @@ describe("resumeDataReducer", () => {
     profile: undefined,
     isLoading: true,
     hasError: false,
-    isFallback: false,
     error: undefined,
     progress: 0,
   };
 
   it("handles START_FETCH action", () => {
     const errorState: ResumeDataState = {
-      profile: defaultResumeData,
+      profile: undefined,
       isLoading: false,
       hasError: true,
-      isFallback: true,
       error: new Error("Test"),
       progress: 50,
     };
@@ -66,7 +59,6 @@ describe("resumeDataReducer", () => {
       profile: undefined,
       isLoading: true,
       hasError: false,
-      isFallback: false,
       error: undefined,
       progress: 0,
     });
@@ -91,30 +83,12 @@ describe("resumeDataReducer", () => {
       profile: defaultResumeData,
       isLoading: false,
       hasError: false,
-      isFallback: false,
       error: undefined,
       progress: 100,
     });
   });
 
-  it("handles ERROR action when fallback profile is provided", () => {
-    const error = new Error("Failed");
-    const stateWithFallback = resumeDataReducer(
-      { ...initialState, progress: 37.5 },
-      { type: "ERROR", error, fallbackProfile: defaultResumeData },
-    );
-
-    expect(stateWithFallback).toEqual({
-      profile: defaultResumeData,
-      isLoading: false,
-      hasError: false,
-      isFallback: true,
-      error,
-      progress: 37.5,
-    });
-  });
-
-  it("handles ERROR action when no fallback profile is available", () => {
+  it("handles ERROR action without an embedded profile", () => {
     const error = new Error("Fatal network error");
     const stateWithoutFallback = resumeDataReducer(initialState, {
       type: "ERROR",
@@ -125,7 +99,6 @@ describe("resumeDataReducer", () => {
       profile: undefined,
       isLoading: false,
       hasError: true,
-      isFallback: false,
       error,
       progress: 0,
     });
@@ -156,6 +129,58 @@ describe("buildAggregatedProfile", () => {
     expect(profile).toBeDefined();
     expect(profile?.name).toBe("Nawaphon");
     expect(profile?.title).toBe("Software Engineer");
+  });
+
+  it("normalizes link, company, client, and institution logos to flat assets", () => {
+    const image = (src: string) => ({
+      src,
+      width: 100,
+      height: 100,
+      surface: "light" as const,
+    });
+    const profile = buildAggregatedProfile([
+      "Nawaphon",
+      "Software Engineer",
+      ["Summary"],
+      defaultResumeData.details,
+      [
+        {
+          label: "GitHub",
+          url: "https://github.com",
+          logo: image("/link-logos/github.svg"),
+        },
+      ],
+      ["Skill A"],
+      [
+        {
+          ...mockExperience,
+          companyLogo: image("/company-logos/wisesoft.png"),
+          client: {
+            name: "InnovestX",
+            logo: image("https://ohm-mho.space/company-logos/innovestx.png"),
+          },
+        },
+      ],
+      {
+        ...mockEducation,
+        institutionLogo: image(
+          "/university-logos/prince-of-songkla-university.webp",
+        ),
+      },
+    ]);
+
+    expect(profile?.links[0].logo?.src).toBe(
+      "https://ohm-mho.space/assets/github.svg",
+    );
+    expect(profile?.experience[0].companyLogo.src).toBe(
+      "https://ohm-mho.space/assets/wisesoft.png",
+    );
+    expect(profile?.experience[0].client?.logo.src).toBe(
+      "https://ohm-mho.space/assets/innovestx.png",
+    );
+    expect(profile?.education.institutionLogo.src).toBe(
+      "https://ohm-mho.space/assets/prince-of-songkla-university.webp",
+    );
   });
 
   it("returns undefined if any of the 8 parts is undefined", () => {
@@ -215,34 +240,6 @@ describe("buildAggregatedProfile", () => {
         null as unknown as typeof mockEducation,
       ]),
     ).toBeUndefined();
-  });
-});
-
-describe("resolveFallbackProfile", () => {
-  it("does not use fallback data unless explicitly enabled", () => {
-    expect(resolveFallbackProfile({})).toBeUndefined();
-    expect(resolveFallbackProfile({ useFallback: true })).toBe(
-      defaultResumeData,
-    );
-  });
-
-  it("returns custom fallbackData when provided", () => {
-    const custom: ResumeProfile = { ...defaultResumeData, name: "Custom" };
-    expect(resolveFallbackProfile({ fallbackData: custom })).toBe(custom);
-  });
-
-  it("returns undefined when fallbackData is explicitly null", () => {
-    expect(resolveFallbackProfile({ fallbackData: null })).toBeUndefined();
-  });
-
-  it("returns defaultResumeData when useFallback is explicitly true", () => {
-    expect(resolveFallbackProfile({ useFallback: true })).toBe(
-      defaultResumeData,
-    );
-  });
-
-  it("returns undefined when useFallback is explicitly false", () => {
-    expect(resolveFallbackProfile({ useFallback: false })).toBeUndefined();
   });
 });
 

@@ -1,103 +1,158 @@
 import {
   Component,
+  Suspense,
+  useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
+import LoaderInline from "@jetbrains/ring-ui-built/components/loader-inline/loader-inline";
 import type { ResumeSectionId } from "../../resume-data";
 
-const NO_ANCHORS: readonly ResumeSectionId[] = [];
+export interface DeferredPlaceholder {
+  id: ResumeSectionId;
+  kicker: string;
+  loadingTitle: string;
+  loadingText: string;
+  errorTitle: string;
+}
 
-interface DeferredSectionProps {
-  sectionId: ResumeSectionId;
-  anchorIds?: readonly ResumeSectionId[];
-  title: string;
-  children: ReactNode;
+export interface DeferredSectionProps {
+  placeholders: readonly DeferredPlaceholder[];
+  groupLabel?: string;
   renderAll: boolean;
+  children: ReactNode;
 }
 
-interface SectionPlaceholderProps {
-  sectionId: ResumeSectionId;
-  anchorIds: readonly ResumeSectionId[];
-  title: string;
-  failed?: boolean;
-  onRetry?: () => void;
+type PlaceholderState = "loading" | "error";
+
+interface PlaceholderViewProps {
+  placeholders: readonly DeferredPlaceholder[];
+  groupLabel?: string;
+  state: PlaceholderState;
 }
 
-function SectionPlaceholder({
-  sectionId,
-  anchorIds,
-  title,
-  failed = false,
-  onRetry,
-}: SectionPlaceholderProps) {
-  const headingId = `${sectionId}-deferred-title`;
+interface PlaceholderAnchorProps {
+  placeholder: DeferredPlaceholder;
+  state: PlaceholderState;
+  standalone: boolean;
+}
+
+const ERROR_TEXT =
+  "This section could not be loaded. Please reload the page to try again.";
+
+function stateClassName(state: PlaceholderState): string {
+  return state === "error"
+    ? "resume-defer-error resume-defer-target"
+    : "resume-defer-placeholder";
+}
+
+function stateAttributes(state: PlaceholderState) {
+  return state === "error"
+    ? { role: "alert", "data-resume-defer-error": "" }
+    : {
+        role: "status",
+        "aria-busy": true,
+        "data-resume-defer-placeholder": "",
+      };
+}
+
+function groupAriaLabel(groupLabel: string, state: PlaceholderState): string {
+  return state === "error"
+    ? `${groupLabel.charAt(0).toUpperCase()}${groupLabel.slice(1)} are unavailable`
+    : `Loading ${groupLabel}`;
+}
+
+function PlaceholderMessage({
+  placeholder,
+  state,
+}: Omit<PlaceholderAnchorProps, "standalone">) {
+  const failed = state === "error";
+
+  return (
+    <div className="resume-defer-message flex w-full items-start gap-4 p-[clamp(1.35rem,3vw,2rem)] text-muted shadow-[0_0.75rem_2rem_rgba(8,35,62,0.05)]">
+      {!failed && (
+        <span className="resume-defer-spinner" aria-hidden="true">
+          <LoaderInline />
+        </span>
+      )}
+      <div>
+        <p className="resume-defer-kicker mb-[0.55rem] text-xs font-extrabold uppercase tracking-[0.12em] text-accent">
+          {placeholder.kicker}
+        </p>
+        <h2
+          id={`${placeholder.id}-${state}-title`}
+          className="m-0 text-[clamp(1.45rem,3vw,2rem)] font-bold leading-[1.15] text-ink"
+        >
+          {failed ? placeholder.errorTitle : placeholder.loadingTitle}
+        </h2>
+        <p className="mt-3 leading-[1.65]">
+          {failed ? ERROR_TEXT : placeholder.loadingText}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PlaceholderAnchor({
+  placeholder,
+  state,
+  standalone,
+}: PlaceholderAnchorProps) {
+  const anchorClassName = `resume-defer-anchor resume-defer-reserve--${placeholder.id} scroll-mt-24`;
 
   return (
     <section
-      id={sectionId}
-      data-resume-section
-      aria-labelledby={headingId}
-      aria-busy={!failed}
-      className={`deferred-section deferred-section--${sectionId} scroll-mt-24 rounded-3xl border border-[color:var(--app-border)] bg-[var(--app-surface)] p-6 sm:p-8`}
-      role={failed ? "alert" : undefined}
+      id={placeholder.id}
+      className={
+        standalone
+          ? `${stateClassName(state)} ${anchorClassName}`
+          : anchorClassName
+      }
+      data-resume-section=""
+      aria-labelledby={`${placeholder.id}-${state}-title`}
+      tabIndex={-1}
+      {...(standalone ? stateAttributes(state) : undefined)}
     >
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--app-accent)] sm:text-sm">
-        {failed ? "Section unavailable" : "Preparing résumé"}
-      </p>
-      <h2
-        id={headingId}
-        className="mt-2 text-2xl font-bold tracking-tight text-[var(--app-heading)] sm:text-3xl"
-      >
-        {failed ? `Unable to display ${title}` : title}
-      </h2>
-      {failed ? (
-        <div className="mt-4">
-          <p className="text-sm leading-relaxed text-[var(--app-muted)]">
-            This section could not be displayed. You can try loading it again.
-          </p>
-          <button
-            type="button"
-            className="mt-4 rounded-lg border border-[color:var(--app-border)] px-4 py-2 text-sm font-semibold text-[var(--app-heading)] hover:bg-[var(--app-surface-raised)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--app-accent)]"
-            onClick={onRetry}
-          >
-            Retry section
-          </button>
-        </div>
-      ) : (
-        <>
-          <p
-            className="mt-3 text-sm text-[var(--app-muted)]"
-            role="status"
-            aria-live="polite"
-          >
-            Loading {title.toLowerCase()}…
-          </p>
-          <div
-            aria-hidden="true"
-            className="mt-6 h-24 animate-pulse rounded-2xl bg-[var(--app-surface-raised)]"
-          />
-        </>
-      )}
-      {anchorIds.length > 0 && (
-        <div className="sr-only" aria-hidden="true">
-          {anchorIds.map((id) => (
-            <span id={id} key={id} />
-          ))}
-        </div>
-      )}
+      <PlaceholderMessage placeholder={placeholder} state={state} />
     </section>
   );
 }
 
+function PlaceholderView({
+  placeholders,
+  groupLabel,
+  state,
+}: PlaceholderViewProps) {
+  const anchors = placeholders.map((placeholder) => (
+    <PlaceholderAnchor
+      key={placeholder.id}
+      placeholder={placeholder}
+      state={state}
+      standalone={groupLabel === undefined}
+    />
+  ));
+
+  if (groupLabel === undefined) {
+    return anchors;
+  }
+
+  return (
+    <div
+      className={stateClassName(state)}
+      aria-label={groupAriaLabel(groupLabel, state)}
+      {...stateAttributes(state)}
+    >
+      {anchors}
+    </div>
+  );
+}
+
 interface SectionErrorBoundaryProps {
-  sectionId: ResumeSectionId;
-  anchorIds: readonly ResumeSectionId[];
-  title: string;
-  onRetry: () => void;
+  fallback: ReactNode;
   children: ReactNode;
 }
 
@@ -116,95 +171,89 @@ class SectionErrorBoundary extends Component<
   }
 
   render() {
-    if (this.state.hasError) {
-      return (
-        <SectionPlaceholder
-          sectionId={this.props.sectionId}
-          anchorIds={this.props.anchorIds}
-          title={this.props.title}
-          failed
-          onRetry={this.props.onRetry}
-        />
-      );
-    }
-
-    return this.props.children;
+    return this.state.hasError ? this.props.fallback : this.props.children;
   }
 }
 
-function hasCurrentFragment(sectionIds: readonly ResumeSectionId[]): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
+interface DeferredContentProps {
+  onMount: (content: HTMLElement | null) => void;
+  children: ReactNode;
+}
 
-  return sectionIds.includes(window.location.hash.slice(1) as ResumeSectionId);
+function DeferredContent({ onMount, children }: DeferredContentProps) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    onMount(contentRef.current);
+  }, [onMount]);
+
+  return (
+    <div ref={contentRef} className="resume-defer-target">
+      {children}
+    </div>
+  );
+}
+
+function hasCurrentFragment(
+  placeholders: readonly DeferredPlaceholder[],
+): boolean {
+  const fragment = window.location.hash.slice(1);
+  return placeholders.some((placeholder) => placeholder.id === fragment);
 }
 
 function shouldInitiallyRender(
-  sectionIds: readonly ResumeSectionId[],
+  placeholders: readonly DeferredPlaceholder[],
 ): boolean {
   return (
-    typeof window === "undefined" ||
     typeof IntersectionObserver === "undefined" ||
-    hasCurrentFragment(sectionIds)
+    hasCurrentFragment(placeholders)
   );
 }
 
-export function DeferredSection({
-  sectionId,
-  anchorIds = NO_ANCHORS,
-  title,
-  children,
-  renderAll,
-}: DeferredSectionProps) {
-  const sectionIds = useMemo(
-    () => [sectionId, ...anchorIds],
-    [sectionId, anchorIds],
-  );
-  const [hasEnteredViewport, setHasEnteredViewport] = useState(() =>
-    shouldInitiallyRender(sectionIds),
-  );
-  const [retryCount, setRetryCount] = useState(0);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const scrollToFragmentRef = useRef(hasCurrentFragment(sectionIds));
-  const shouldRender =
-    renderAll ||
-    hasEnteredViewport ||
-    typeof IntersectionObserver === "undefined";
+function scrollToCurrentFragment(container: HTMLElement | null): void {
+  const target = document.getElementById(window.location.hash.slice(1));
+  if (!target || !container?.contains(target)) {
+    return;
+  }
 
+  const scrollIntoView: unknown = Reflect.get(target, "scrollIntoView");
+  if (typeof scrollIntoView === "function") {
+    scrollIntoView.call(target);
+  }
+}
+
+function useViewportEntry(
+  targetRef: RefObject<HTMLElement | null>,
+  active: boolean,
+  onEnter: () => void,
+): void {
   useEffect(() => {
-    if (shouldRender) {
+    const target = targetRef.current;
+    if (!active || !target) {
       return;
     }
 
-    const wrapper = wrapperRef.current;
-    if (!wrapper) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setHasEnteredViewport(true);
-        }
-      },
-      {
-        rootMargin: "200px 0px",
-        threshold: 0.01,
-      },
-    );
-    observer.observe(wrapper);
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        onEnter();
+      }
+    });
+    observer.observe(target);
 
     return () => {
       observer.disconnect();
     };
-  }, [shouldRender]);
+  }, [targetRef, active, onEnter]);
+}
 
+function useFragmentEntry(
+  placeholders: readonly DeferredPlaceholder[],
+  onEnter: () => void,
+): void {
   useEffect(() => {
     const handleHashChange = () => {
-      if (hasCurrentFragment(sectionIds)) {
-        scrollToFragmentRef.current = !shouldRender;
-        setHasEnteredViewport(true);
+      if (hasCurrentFragment(placeholders)) {
+        onEnter();
       }
     };
 
@@ -212,46 +261,68 @@ export function DeferredSection({
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
     };
-  }, [sectionIds, shouldRender]);
+  }, [placeholders, onEnter]);
+}
 
-  useLayoutEffect(() => {
-    if (!shouldRender || !scrollToFragmentRef.current) {
-      return;
+function useDeferredTrigger(placeholders: readonly DeferredPlaceholder[]) {
+  const [triggered, setTriggered] = useState(() =>
+    shouldInitiallyRender(placeholders),
+  );
+  const [startedOnFragment] = useState(() => hasCurrentFragment(placeholders));
+  const pendingScrollRef = useRef(startedOnFragment);
+  const mountedRef = useRef(false);
+
+  const enterViewport = useCallback(() => {
+    setTriggered(true);
+  }, []);
+  const enterFragment = useCallback(() => {
+    pendingScrollRef.current = !mountedRef.current;
+    setTriggered(true);
+  }, []);
+  const handleMount = useCallback((content: HTMLElement | null) => {
+    mountedRef.current = true;
+    if (pendingScrollRef.current) {
+      pendingScrollRef.current = false;
+      scrollToCurrentFragment(content);
     }
-    scrollToFragmentRef.current = false;
-    const target = document.getElementById(window.location.hash.slice(1));
-    if (target && wrapperRef.current?.contains(target)) {
-      const scrollIntoView: unknown = Reflect.get(target, "scrollIntoView");
-      if (typeof scrollIntoView === "function") {
-        scrollIntoView.call(target);
-      }
-    }
-  }, [shouldRender]);
+  }, []);
+
+  useFragmentEntry(placeholders, enterFragment);
+
+  return { triggered, enterViewport, handleMount };
+}
+
+export function DeferredSection({
+  placeholders,
+  groupLabel,
+  renderAll,
+  children,
+}: DeferredSectionProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const { triggered, enterViewport, handleMount } =
+    useDeferredTrigger(placeholders);
+  const shouldRender = renderAll || triggered;
+
+  useViewportEntry(wrapperRef, !shouldRender, enterViewport);
+
+  const renderPlaceholder = (state: PlaceholderState) => (
+    <PlaceholderView
+      placeholders={placeholders}
+      groupLabel={groupLabel}
+      state={state}
+    />
+  );
 
   return (
-    <div
-      ref={wrapperRef}
-      className={shouldRender ? "resume-defer-target" : undefined}
-      data-deferred-section={sectionId}
-    >
+    <div ref={wrapperRef}>
       {shouldRender ? (
-        <SectionErrorBoundary
-          key={retryCount}
-          sectionId={sectionId}
-          anchorIds={anchorIds}
-          title={title}
-          onRetry={() => {
-            setRetryCount((count) => count + 1);
-          }}
-        >
-          {children}
+        <SectionErrorBoundary fallback={renderPlaceholder("error")}>
+          <Suspense fallback={renderPlaceholder("loading")}>
+            <DeferredContent onMount={handleMount}>{children}</DeferredContent>
+          </Suspense>
         </SectionErrorBoundary>
       ) : (
-        <SectionPlaceholder
-          sectionId={sectionId}
-          anchorIds={anchorIds}
-          title={title}
-        />
+        renderPlaceholder("loading")
       )}
     </div>
   );

@@ -1,11 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useResumeData } from "./use-resume-data";
-import {
-  resumeData as defaultResumeData,
-  type ResumeEducation,
-  type ResumeExperience,
-} from "../resume-data";
+import { type ResumeEducation, type ResumeExperience } from "../resume-data";
+import { resumeProfile as defaultResumeData } from "../test-fixtures/resume-profile";
 
 const mockExperience: ResumeExperience = {
   role: "Developer",
@@ -132,35 +129,13 @@ describe("useResumeData hook orchestration", () => {
       expect(result.current.profile?.name).toBe("Nawaphon Isarathanachaikul");
       expect(result.current.progress).toBe(100);
       expect(result.current.hasError).toBe(false);
-      expect(result.current.isFallback).toBe(false);
     });
 
-    it("falls back to defaultResumeData when explicitly enabled and fetch fails", async () => {
+    it("reports API failures without using an embedded profile", async () => {
       const mockFetch = createMockFetch({ "/names": "FAIL_500" });
       const { result } = renderHook(() =>
         useResumeData({
           fetchFn: mockFetch as unknown as typeof fetch,
-          retryDelayMs: 1,
-          maxRetries: 0,
-          useFallback: true,
-        }),
-      );
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.profile).toEqual(defaultResumeData);
-      expect(result.current.isFallback).toBe(true);
-      expect(result.current.hasError).toBe(false);
-    });
-
-    it("sets hasError: true and leaves profile undefined when useFallback is false", async () => {
-      const mockFetch = createMockFetch({ "/names": "FAIL_500" });
-      const { result } = renderHook(() =>
-        useResumeData({
-          fetchFn: mockFetch as unknown as typeof fetch,
-          useFallback: false,
           retryDelayMs: 1,
           maxRetries: 0,
         }),
@@ -171,7 +146,24 @@ describe("useResumeData hook orchestration", () => {
       });
 
       expect(result.current.profile).toBeUndefined();
-      expect(result.current.isFallback).toBe(false);
+      expect(result.current.hasError).toBe(true);
+    });
+
+    it("leaves profile undefined when an endpoint returns an invalid shape", async () => {
+      const mockFetch = createMockFetch({ "/names": "FAIL_500" });
+      const { result } = renderHook(() =>
+        useResumeData({
+          fetchFn: mockFetch as unknown as typeof fetch,
+          retryDelayMs: 1,
+          maxRetries: 0,
+        }),
+      );
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.profile).toBeUndefined();
       expect(result.current.hasError).toBe(true);
     });
 
@@ -367,7 +359,7 @@ describe("useResumeData hook orchestration", () => {
       expect(result.current.profile?.name).toBe("Name-Attempt-9");
     });
 
-    it("falls back cleanly without hanging in loading state when an endpoint returns null data", async () => {
+    it("reports an error without a fallback when an endpoint returns null data", async () => {
       const mockFetch = createMockFetch({
         "/summaries": null,
       });
@@ -376,31 +368,6 @@ describe("useResumeData hook orchestration", () => {
         useResumeData({
           fetchFn: mockFetch as unknown as typeof fetch,
           maxRetries: 0,
-          useFallback: true,
-        }),
-      );
-
-      expect(result.current.isLoading).toBe(true);
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false);
-      });
-
-      expect(result.current.isFallback).toBe(true);
-      expect(result.current.hasError).toBe(false);
-      expect(result.current.profile).toEqual(defaultResumeData);
-    });
-
-    it("transitions to error state without fallback when an endpoint returns invalid shape and fallback is disabled", async () => {
-      const mockFetch = createMockFetch({
-        "/details": "invalid-details-string",
-      });
-
-      const { result } = renderHook(() =>
-        useResumeData({
-          fetchFn: mockFetch as unknown as typeof fetch,
-          maxRetries: 0,
-          useFallback: false,
         }),
       );
 
@@ -411,12 +378,33 @@ describe("useResumeData hook orchestration", () => {
       });
 
       expect(result.current.hasError).toBe(true);
-      expect(result.current.isFallback).toBe(false);
+      expect(result.current.profile).toBeUndefined();
+    });
+
+    it("transitions to error state when endpoint data has an invalid shape", async () => {
+      const mockFetch = createMockFetch({
+        "/details": "invalid-details-string",
+      });
+
+      const { result } = renderHook(() =>
+        useResumeData({
+          fetchFn: mockFetch as unknown as typeof fetch,
+          maxRetries: 0,
+        }),
+      );
+
+      expect(result.current.isLoading).toBe(true);
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.hasError).toBe(true);
       expect(result.current.profile).toBeUndefined();
       expect(result.current.error).toBeDefined();
     });
 
-    it("falls back to defaultResumeData when experiences payload is missing companyLogo", async () => {
+    it("reports malformed experience data instead of using an embedded profile", async () => {
       const invalidExp = { ...mockExperience, companyLogo: undefined };
       const mockFetch = createMockFetch({
         "/experiences": [invalidExp],
@@ -426,7 +414,6 @@ describe("useResumeData hook orchestration", () => {
         useResumeData({
           fetchFn: mockFetch as unknown as typeof fetch,
           maxRetries: 0,
-          useFallback: true,
         }),
       );
 
@@ -434,8 +421,8 @@ describe("useResumeData hook orchestration", () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.isFallback).toBe(true);
-      expect(result.current.profile).toEqual(defaultResumeData);
+      expect(result.current.hasError).toBe(true);
+      expect(result.current.profile).toBeUndefined();
     });
   });
 });

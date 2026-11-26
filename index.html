@@ -1,13 +1,131 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>resume-react-version</title>
+    <meta charset="utf-8" />
+    <title>Nawaphon Isarathanachaikul | Backend Software Engineer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Backend Software Engineer résumé covering APIs, data integration, event-driven systems, automation, and full-stack delivery."
+    />
+    <meta name="author" content="Nawaphon Isarathanachaikul" />
+    <meta name="robots" content="index, follow" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: light)"
+      content="#f4f7fb"
+    />
+    <meta
+      name="theme-color"
+      media="(prefers-color-scheme: dark)"
+      content="#07111f"
+    />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content="Nawaphon Isarathanachaikul" />
+    <meta
+      property="og:title"
+      content="Nawaphon Isarathanachaikul | Backend Software Engineer"
+    />
+    <meta
+      property="og:description"
+      content="Backend Software Engineer résumé covering APIs, data integration, event-driven systems, automation, and full-stack delivery."
+    />
+
+    <meta name="twitter:card" content="summary" />
+    <meta
+      name="twitter:title"
+      content="Nawaphon Isarathanachaikul | Backend Software Engineer"
+    />
+    <meta
+      name="twitter:description"
+      content="Backend Software Engineer résumé covering APIs, data integration, event-driven systems, automation, and full-stack delivery."
+    />
+
+    <style>
+      body {
+        margin: 0;
+        background-color: #07111f;
+      }
+
+      .pre-bootstrap-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #07111f;
+        color: #7cb8ff;
+      }
+
+      .pre-bootstrap-spinner {
+        width: 56px;
+        height: 56px;
+        animation: pre-bootstrap-rotate 2s linear infinite;
+        transform-origin: center center;
+      }
+
+      .pre-bootstrap-spinner circle {
+        stroke: currentColor;
+        stroke-linecap: round;
+        animation: pre-bootstrap-dash 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pre-bootstrap-rotate {
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes pre-bootstrap-dash {
+        0% {
+          stroke-dasharray: 1px, 200px;
+          stroke-dashoffset: 0;
+        }
+        50% {
+          stroke-dasharray: 100px, 200px;
+          stroke-dashoffset: -15px;
+        }
+        100% {
+          stroke-dasharray: 100px, 200px;
+          stroke-dashoffset: -125px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .pre-bootstrap-spinner {
+          animation: none;
+        }
+
+        .pre-bootstrap-spinner circle {
+          animation: none;
+          stroke-dasharray: 110px, 200px;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div
+        class="pre-bootstrap-loader"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading résumé"
+      >
+        <svg
+          class="pre-bootstrap-spinner"
+          viewBox="0 0 56 56"
+          width="56"
+          height="56"
+          aria-hidden="true"
+        >
+          <circle cx="28" cy="28" r="26" fill="none" stroke-width="4" />
+        </svg>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

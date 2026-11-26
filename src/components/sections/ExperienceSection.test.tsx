@@ -1,20 +1,67 @@
-import { fireEvent, render } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { ExperienceSection } from "./ExperienceSection";
-import { resumeData, type ResumeExperience } from "../../resume-data";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ExperienceSection as BaseExperienceSection } from "./ExperienceSection";
+import { ImageZoomProvider } from "../common/ImageZoomProvider";
+import { type ResumeExperience } from "../../resume-data";
+import {
+  expectZoomPreview as expectPreview,
+  hoverImage,
+  leaveImage,
+  queryZoomPreview,
+  setImageGeometry,
+  tapImage,
+} from "../../test-fixtures/image-zoom";
+import { resumeProfile as resumeData } from "../../test-fixtures/resume-profile";
 
-function getReactChipSpan(container: HTMLElement) {
-  const chips = Array.from(container.querySelectorAll(".technology-chip"));
-  return chips.find((el) => el.textContent.trim() === "React");
+vi.mock("../../services/technology-icon-contrast", () => ({
+  enhanceTechnologyIcon: vi.fn((src: string) =>
+    Promise.resolve({ src, background: "#ffffff" }),
+  ),
+}));
+
+function ExperienceSection({
+  experience = resumeData.experience,
+}: {
+  experience?: readonly ResumeExperience[];
+}) {
+  return (
+    <ImageZoomProvider>
+      <BaseExperienceSection experience={experience} />
+    </ImageZoomProvider>
+  );
 }
+
+function getChip(container: HTMLElement, technology: string): Element {
+  const chip = Array.from(
+    container.querySelectorAll(".technology-chip-content"),
+  ).find((element) => element.textContent.trim() === technology);
+  if (!chip) throw new Error(`Missing ${technology} chip`);
+  return chip;
+}
+
+function getCards(container: HTMLElement): Element[] {
+  return Array.from(container.querySelectorAll(".experience-card"));
+}
+
+function getDownscaledImage(
+  container: Element,
+  selector: string,
+  index = 0,
+): HTMLImageElement {
+  const image = container.querySelectorAll<HTMLImageElement>(selector)[index];
+  setImageGeometry(image);
+  return image;
+}
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe("ExperienceSection", () => {
   describe("timeline rendering and content", () => {
     it("renders all experience records with numbered timeline markers", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
-      );
+      const { container } = render(<ExperienceSection />);
 
       const markers = container.querySelectorAll(".timeline-marker span");
       expect(markers).toHaveLength(resumeData.experience.length);
@@ -27,10 +74,7 @@ describe("ExperienceSection", () => {
     });
 
     it("renders roles, companies, periods, locations, and highlights", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
-      );
+      const { container } = render(<ExperienceSection />);
 
       for (const exp of resumeData.experience) {
         expect(container.textContent).toContain(exp.role);
@@ -45,10 +89,7 @@ describe("ExperienceSection", () => {
     });
 
     it("displays employer and client relationship with arrow for outsourced roles", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
-      );
+      const { container } = render(<ExperienceSection />);
 
       const outsourcedRoles = resumeData.experience.filter((exp) => exp.client);
       expect(outsourcedRoles.length).toBe(3);
@@ -64,7 +105,6 @@ describe("ExperienceSection", () => {
     });
 
     it("renders custom experience list passed via props", () => {
-      const onSelectImage = vi.fn();
       const customExperience: ResumeExperience[] = [
         {
           role: "Lead Architect",
@@ -84,10 +124,7 @@ describe("ExperienceSection", () => {
       ];
 
       const { container } = render(
-        <ExperienceSection
-          experience={customExperience}
-          onSelectImage={onSelectImage}
-        />,
+        <ExperienceSection experience={customExperience} />,
       );
 
       expect(container.textContent).toContain("Lead Architect");
@@ -95,156 +132,198 @@ describe("ExperienceSection", () => {
       expect(container.querySelectorAll(".timeline-marker")).toHaveLength(1);
     });
 
-    it("includes client name in print-only company line for outsourced roles", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
-      );
+    it("keeps a company-only line for the printed résumé", () => {
+      const { container } = render(<ExperienceSection />);
 
-      const printCompanyElements = Array.from(
+      const printCompanies = Array.from(
         container.querySelectorAll(".company"),
+        (element) => element.textContent,
       );
-      expect(printCompanyElements).toHaveLength(resumeData.experience.length);
 
-      resumeData.experience.forEach((exp, index) => {
-        const text = printCompanyElements[index]?.textContent?.trim();
-        if (exp.client) {
-          expect(text).toBe(`${exp.company} → ${exp.client.name}`);
-        } else {
-          expect(text).toBe(exp.company);
-        }
+      expect(printCompanies).toEqual(
+        resumeData.experience.map((exp) => exp.company),
+      );
+    });
+
+    it("is the experience anchor labelled by its heading", () => {
+      const { container } = render(<ExperienceSection />);
+      const section = container.querySelector("section");
+      const heading = screen.getByRole("heading", {
+        level: 2,
+        name: "Experience timeline",
       });
+
+      expect(section?.id).toBe("experience");
+      expect(section?.hasAttribute("data-resume-section")).toBe(true);
+      expect(section?.getAttribute("aria-labelledby")).toBe(heading.id);
+      expect(container.querySelector(".section-kicker")?.textContent).toBe(
+        "Employment",
+      );
+      expect(container.querySelector(".section-lead")?.textContent).toBe(
+        "Five roles spanning full-stack delivery, banking systems, data platforms, integrations, and backend services.",
+      );
     });
   });
 
-  describe("company and client logo zoom interactions", () => {
-    it("triggers onSelectImage when clicking company logo", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
+  describe("card header", () => {
+    it("labels the employer and client of an outsourced role", () => {
+      const { container } = render(<ExperienceSection />);
+      const [card] = getCards(container);
+      const labels = Array.from(
+        card.querySelectorAll(".company-label"),
+        (label) => label.textContent,
       );
 
-      const firstExp = resumeData.experience[0];
-      const companyLogoBtn = container.querySelector(
-        `button[aria-label="Open enlarged ${firstExp.company} logo"]`,
-      );
-      expect(companyLogoBtn).not.toBeNull();
-      if (!companyLogoBtn) throw new Error("button not found");
-
-      fireEvent.click(companyLogoBtn);
-      expect(onSelectImage).toHaveBeenCalledWith({
-        src: firstExp.companyLogo.src,
-        alt: `${firstExp.company} logo`,
-        surface: firstExp.companyLogo.surface,
-        width: firstExp.companyLogo.width,
-        height: firstExp.companyLogo.height,
-        origin: companyLogoBtn.querySelector("img"),
-        activation: "keyboard",
-      });
+      expect(labels).toEqual(["Employer", "Client"]);
+      expect(card.querySelector(".company-identity--client")).not.toBeNull();
     });
 
-    it("triggers onSelectImage when clicking client logo", () => {
-      const onSelectImage = vi.fn();
+    it("labels a direct role with a single company identity", () => {
+      const { container } = render(<ExperienceSection />);
+      const directIndex = resumeData.experience.findIndex((exp) => !exp.client);
+      const card = getCards(container)[directIndex];
+      const labels = Array.from(
+        card.querySelectorAll(".company-label"),
+        (label) => label.textContent,
+      );
+
+      expect(labels).toEqual(["Company"]);
+      expect(card.querySelector(".company-relationship-arrow")).toBeNull();
+    });
+
+    it("shows the role with its employment types joined by an arrow", () => {
       const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
+        <ExperienceSection
+          experience={[
+            {
+              ...resumeData.experience[0],
+              employmentTypes: ["Internship", "Full-time"],
+            },
+          ]}
+        />,
+      );
+      const employment = container.querySelector(".employment-type");
+
+      expect(
+        screen.getByRole("heading", {
+          level: 3,
+          name: resumeData.experience[0].role,
+        }),
+      ).not.toBeNull();
+      expect(employment?.textContent).toBe("Internship → Full-time");
+      expect(employment?.getAttribute("aria-label")).toBe(
+        "Employment type: Internship → Full-time",
+      );
+    });
+
+    it("shows the location with a decorative glyph and the period", () => {
+      const { container } = render(<ExperienceSection />);
+      const [card] = getCards(container);
+      const [job] = resumeData.experience;
+      const location = card.querySelector(".location");
+
+      expect(location?.textContent).toBe(job.location);
+      expect(
+        location?.querySelector('.location-icon[aria-hidden="true"] svg'),
+      ).not.toBeNull();
+      expect(card.querySelector(".period")?.textContent).toBe(job.period);
+      expect(card.querySelector("hr.card-divider")).not.toBeNull();
+    });
+
+    it("lists the highlights of each role in order", () => {
+      const { container } = render(<ExperienceSection />);
+      const [card] = getCards(container);
+      const highlights = Array.from(
+        card.querySelectorAll(".highlights > li"),
+        (item) => item.textContent,
       );
 
+      expect(highlights).toEqual(resumeData.experience[0].highlights);
+    });
+  });
+
+  describe("company and client logo zoom", () => {
+    it("renders logos as decorative framed images without wrapper buttons", () => {
+      const { container } = render(<ExperienceSection />);
       const firstExp = resumeData.experience[0];
-      expect(firstExp.client).toBeDefined();
-      if (!firstExp.client) throw new Error("client not found");
+      const logo = container.querySelector(".company-logo-frame > img");
 
-      const clientLogoBtn = container.querySelector(
-        `button[aria-label="Open enlarged ${firstExp.client.name} logo"]`,
-      );
-      expect(clientLogoBtn).not.toBeNull();
-      if (!clientLogoBtn) throw new Error("button not found");
+      expect(container.querySelector("button")).toBeNull();
+      expect(logo?.getAttribute("src")).toBe(firstExp.companyLogo.src);
+      expect(logo?.getAttribute("alt")).toBe("");
+      expect(
+        logo?.parentElement?.classList.contains(
+          `company-logo-frame--${firstExp.companyLogo.surface}`,
+        ),
+      ).toBe(true);
+    });
 
-      fireEvent.click(clientLogoBtn);
-      expect(onSelectImage).toHaveBeenCalledWith({
-        src: firstExp.client.logo.src,
-        alt: `${firstExp.client.name} logo`,
-        surface: firstExp.client.logo.surface,
-        width: firstExp.client.logo.width,
-        height: firstExp.client.logo.height,
-        origin: clientLogoBtn.querySelector("img"),
-        activation: "keyboard",
-      });
+    it("previews the company logo on hover and closes when the pointer leaves", () => {
+      const { container } = render(<ExperienceSection />);
+      const firstExp = resumeData.experience[0];
+      const logo = getDownscaledImage(container, ".company-logo");
+
+      hoverImage(logo);
+      expectPreview(firstExp.company, firstExp.companyLogo.src);
+
+      leaveImage(logo);
+      expect(queryZoomPreview()).toBeNull();
+    });
+
+    it("toggles the client logo preview on touch", () => {
+      const { container } = render(<ExperienceSection />);
+      const client = resumeData.experience[0].client;
+      if (!client) throw new Error("client not found");
+      const logo = getDownscaledImage(container, ".company-logo", 1);
+
+      tapImage(logo);
+      expectPreview(client.name, client.logo.src);
+
+      tapImage(logo);
+      expect(queryZoomPreview()).toBeNull();
     });
   });
 
   describe("technology chips and fallback handling", () => {
-    it("triggers onSelectImage when clicking a technology chip with a brand icon", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
-      );
+    it("previews a technology icon from the image inside a plain chip", () => {
+      const { container } = render(<ExperienceSection />);
+      const reactChip = getChip(container, "React");
+      const icon = getDownscaledImage(reactChip, "img");
 
-      const reactChip = container.querySelector(
-        'button[aria-label="Open enlarged React icon"]',
-      );
-      expect(reactChip).not.toBeNull();
-      if (!reactChip) throw new Error("button not found");
+      expect(reactChip.closest("button")).toBeNull();
+      hoverImage(icon);
 
-      fireEvent.click(reactChip);
-      expect(onSelectImage).toHaveBeenCalledWith({
-        src: "https://resume-images.ohm-mho.space/technology-icons/react.svg",
-        alt: "React icon",
-        surface: "light",
-        width: 24,
-        height: 24,
-        origin: reactChip.querySelector("img"),
-        activation: "keyboard",
-      });
+      expectPreview("React", "https://ohm-mho.space/assets/react.svg");
     });
 
-    it("renders non-button chip for unmapped technologies with fallback icon", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
-      );
+    it("renders the fallback icon for unmapped technologies", () => {
+      const { container } = render(<ExperienceSection />);
+      const restApiChip = getChip(container, "REST APIs");
 
-      const chipElements = Array.from(
-        container.querySelectorAll(".technology-chip"),
-      );
-      const restApiChip = chipElements.find(
-        (el) => el.textContent.trim() === "REST APIs",
-      );
-
-      expect(restApiChip).toBeDefined();
-      expect(restApiChip?.tagName.toLowerCase()).toBe("span");
+      expect(restApiChip.closest("button")).toBeNull();
       expect(
-        restApiChip?.querySelector(".technology-fallback-icon"),
+        restApiChip.querySelector(".technology-fallback-icon"),
+      ).not.toBeNull();
+      expect(restApiChip.querySelector("img")).toBeNull();
+    });
+
+    it("shows the fallback icon when a technology icon fails to load", () => {
+      const { container } = render(<ExperienceSection />);
+      const reactChip = getChip(container, "React");
+      const icon = getDownscaledImage(reactChip, "img");
+      hoverImage(icon);
+
+      fireEvent.error(icon);
+
+      expect(queryZoomPreview()).toBeNull();
+      expect(reactChip.querySelector("img")).toBeNull();
+      expect(
+        reactChip.querySelector(".technology-fallback-icon"),
       ).not.toBeNull();
     });
 
-    it("disables zoom interaction when a technology icon image fails to load", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
-      );
-
-      const img = container.querySelector(
-        'button[aria-label="Open enlarged React icon"] img',
-      );
-      if (img) fireEvent.error(img);
-
-      expect(
-        container.querySelector(
-          'button[aria-label="Open enlarged React icon"]',
-        ),
-      ).toBeNull();
-
-      const reactChipSpan = getReactChipSpan(container);
-      expect(reactChipSpan?.tagName.toLowerCase()).toBe("span");
-      if (reactChipSpan) fireEvent.click(reactChipSpan);
-      expect(onSelectImage).not.toHaveBeenCalled();
-    });
-
     it("renders technology chips container with role='group' and descriptive aria-label", () => {
-      const onSelectImage = vi.fn();
-      const { container } = render(
-        <ExperienceSection onSelectImage={onSelectImage} />,
-      );
+      const { container } = render(<ExperienceSection />);
 
       const techGroups = container.querySelectorAll('div[role="group"]');
       expect(techGroups).toHaveLength(resumeData.experience.length);

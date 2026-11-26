@@ -1,5 +1,8 @@
-export const RESUME_PDF_DOWNLOAD_URL =
-  "https://ohm-mho.space/assets/Nawaphon_Isarathanachaikul.pdf";
+import { assetUrls } from "./data/asset-urls";
+
+export const RESUME_PDF_DOWNLOAD_URL = assetUrls.file(
+  "Nawaphon_Isarathanachaikul.pdf",
+);
 export const RESUME_PDF_FILENAME =
   "nawaphon-isarathanachaikul-resume-profile.pdf";
 

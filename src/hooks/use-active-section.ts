@@ -1,44 +1,13 @@
 import { useEffect, useState } from "react";
 import { resumeSections, type ResumeSectionId } from "../resume-data";
 
-const OBSERVER_OPTIONS: IntersectionObserverInit = {
-  threshold: [0.2, 0.35, 0.5, 0.7],
-  rootMargin: "-20% 0px -55% 0px",
-};
+const SECTION_ACTIVATION_RATIO = 0.18;
+const VIEWPORT_EVENT_THROTTLE_MS = 100;
 
-function findBestSection(
-  entries: IntersectionObserverEntry[],
-  ratios: Map<ResumeSectionId, number>,
-  observedElements: Map<ResumeSectionId, HTMLElement>,
-): ResumeSectionId | null {
-  for (const entry of entries) {
-    const sectionId = entry.target.id as ResumeSectionId;
-    if (observedElements.get(sectionId) !== entry.target) {
-      continue;
-    }
-    ratios.set(sectionId, entry.isIntersecting ? entry.intersectionRatio : 0);
-  }
-
-  const nextSection = resumeSections.reduce<{
-    id: ResumeSectionId;
-    ratio: number;
-  }>(
-    (best, section) => {
-      const ratio = ratios.get(section.id) ?? 0;
-      return ratio > best.ratio ? { id: section.id, ratio } : best;
-    },
-    { id: "about", ratio: 0 },
-  );
-
-  return nextSection.ratio > 0 ? nextSection.id : null;
-}
-
-function getSectionElements(): HTMLElement[] {
-  return resumeSections
-    .map((section) => document.getElementById(section.id))
-    .filter((element): element is HTMLElement =>
-      Boolean(element?.hasAttribute("data-resume-section")),
-    );
+interface SectionBounds {
+  id: ResumeSectionId;
+  top: number;
+  bottom: number;
 }
 
 function getSectionFromHash(): ResumeSectionId | null {
@@ -46,87 +15,96 @@ function getSectionFromHash(): ResumeSectionId | null {
   return resumeSections.find((section) => section.id === sectionId)?.id ?? null;
 }
 
-function syncObservedSections(
-  observer: IntersectionObserver,
-  ratios: Map<ResumeSectionId, number>,
-  observedElements: Map<ResumeSectionId, HTMLElement>,
-): void {
-  const currentElements = new Map(
-    getSectionElements().map((element) => [
-      element.id as ResumeSectionId,
-      element,
-    ]),
-  );
+function getVisibleSections(viewportHeight: number): SectionBounds[] {
+  const visibleSections: SectionBounds[] = [];
 
-  for (const [sectionId, element] of observedElements) {
-    if (currentElements.get(sectionId) !== element) {
-      observer.unobserve(element);
-      observedElements.delete(sectionId);
-      ratios.delete(sectionId);
+  for (const section of resumeSections) {
+    const bounds = document.getElementById(section.id)?.getBoundingClientRect();
+
+    if (bounds && bounds.bottom > 0 && bounds.top < viewportHeight) {
+      visibleSections.push({
+        id: section.id,
+        top: bounds.top,
+        bottom: bounds.bottom,
+      });
     }
   }
 
-  for (const [sectionId, element] of currentElements) {
-    if (observedElements.get(sectionId) !== element) {
-      observedElements.set(sectionId, element);
-      observer.observe(element);
-    }
-  }
+  return visibleSections;
 }
 
-function observeSections(setActiveSection: (id: ResumeSectionId) => void) {
-  const ratios = new Map<ResumeSectionId, number>();
-  const observedElements = new Map<ResumeSectionId, HTMLElement>();
-  const observer = new IntersectionObserver((entries) => {
-    const bestSection = findBestSection(entries, ratios, observedElements);
-    if (bestSection) {
-      setActiveSection(bestSection);
-    }
-  }, OBSERVER_OPTIONS);
-  const syncSections = () => {
-    syncObservedSections(observer, ratios, observedElements);
-  };
-  syncSections();
-  const mutationObserver =
-    typeof MutationObserver === "undefined"
-      ? null
-      : new MutationObserver(syncSections);
-  mutationObserver?.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-  });
-  return () => {
-    observer.disconnect();
-    mutationObserver?.disconnect();
+function findActiveSection(viewportHeight: number): ResumeSectionId | null {
+  const activationLine = viewportHeight * SECTION_ACTIVATION_RATIO;
+  const visibleSections = getVisibleSections(viewportHeight);
+  const crossingSection = visibleSections.find(
+    ({ top, bottom }) => top <= activationLine && bottom >= activationLine,
+  );
+
+  if (crossingSection) {
+    return crossingSection.id;
+  }
+
+  const nearestSection = visibleSections
+    .sort(
+      (first, second) =>
+        Math.abs(first.top - activationLine) -
+        Math.abs(second.top - activationLine),
+    )
+    .at(0);
+
+  return nearestSection?.id ?? null;
+}
+
+function createViewportThrottle(callback: () => void) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  return {
+    schedule: () => {
+      timer ??= setTimeout(() => {
+        timer = null;
+        callback();
+      }, VIEWPORT_EVENT_THROTTLE_MS);
+    },
+    cancel: () => {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    },
   };
 }
 
 export function useActiveSection(initialSection: ResumeSectionId = "about") {
-  const [activeSection, setActiveSection] = useState<ResumeSectionId>(() =>
-    typeof window === "undefined"
-      ? initialSection
-      : (getSectionFromHash() ?? initialSection),
+  const [activeSection, setActiveSection] = useState<ResumeSectionId>(
+    () => getSectionFromHash() ?? initialSection,
   );
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setActiveSection(getSectionFromHash() ?? initialSection);
+    const selectSection = (section: ResumeSectionId | null) => {
+      if (section) {
+        setActiveSection(section);
+      }
     };
+    const handleHashChange = () => {
+      selectSection(getSectionFromHash());
+    };
+    const viewportThrottle = createViewportThrottle(() => {
+      selectSection(findActiveSection(window.innerHeight));
+    });
+
     window.addEventListener("hashchange", handleHashChange);
-
-    if (typeof IntersectionObserver === "undefined") {
-      return () => {
-        window.removeEventListener("hashchange", handleHashChange);
-      };
-    }
-
-    const stopObserving = observeSections(setActiveSection);
+    window.addEventListener("scroll", viewportThrottle.schedule, {
+      passive: true,
+    });
+    window.addEventListener("resize", viewportThrottle.schedule);
 
     return () => {
-      stopObserving();
       window.removeEventListener("hashchange", handleHashChange);
+      window.removeEventListener("scroll", viewportThrottle.schedule);
+      window.removeEventListener("resize", viewportThrottle.schedule);
+      viewportThrottle.cancel();
     };
-  }, [initialSection]);
+  }, []);
 
-  return { activeSection, setActiveSection };
+  return { activeSection };
 }
