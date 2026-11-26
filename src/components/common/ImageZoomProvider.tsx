@@ -151,9 +151,9 @@ export function ImageZoomProvider({ children }: ImageZoomProviderProps) {
   useImageZoomDismissal(request, controller);
 
   return (
-    <ImageZoomContext value={controller}>
+    <ImageZoomContext.Provider value={controller}>
       {children}
       {request && <ImageZoomPreview request={request} onClose={closeRequest} />}
-    </ImageZoomContext>
+    </ImageZoomContext.Provider>
   );
 }

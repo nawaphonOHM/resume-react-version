@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
-import { use, useEffect } from "react";
+import { useContext, useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ImageAsset } from "../../resume-data";
 import {
@@ -28,7 +28,7 @@ interface ControllerProbeProps {
 }
 
 function ControllerProbe({ onReady }: ControllerProbeProps) {
-  const controller = use(ImageZoomContext);
+  const controller = useContext(ImageZoomContext);
 
   useEffect(() => {
     onReady(controller);
