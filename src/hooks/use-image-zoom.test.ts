@@ -73,7 +73,7 @@ function renderZoomImage(
   const controller = createController();
   const view = (current: UseImageZoomOptions) =>
     createElement(
-      ImageZoomContext,
+      ImageZoomContext.Provider,
       { value: controller },
       createElement(ZoomImage, current),
     );

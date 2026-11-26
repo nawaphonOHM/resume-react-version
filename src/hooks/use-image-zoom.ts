@@ -1,6 +1,6 @@
 import {
-  use,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   type MouseEvent,
@@ -23,7 +23,7 @@ export interface UseImageZoomOptions {
 }
 
 export interface ImageZoomImageProps {
-  ref: RefObject<HTMLImageElement | null>;
+  ref: RefObject<HTMLImageElement>;
   onPointerEnter: (event: PointerEvent<HTMLImageElement>) => void;
   onPointerLeave: (event: PointerEvent<HTMLImageElement>) => void;
   onClick: (event: MouseEvent<HTMLImageElement>) => void;
@@ -157,7 +157,7 @@ export function useImageZoom({
   background,
   touch = true,
 }: UseImageZoomOptions): ImageZoomImageProps {
-  const controller = use(ImageZoomContext);
+  const controller = useContext(ImageZoomContext);
   const { imageRef, evaluate } = useZoomEligibility(controller, logo);
   const { src, width, height, surface } = logo;
 
